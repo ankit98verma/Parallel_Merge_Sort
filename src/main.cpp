@@ -90,7 +90,7 @@ void time_profile_gpu(bool verbose){
     }
 
     START_TIMER();
-		cuda_cpy_output_data();
+		cuda_cpy_output_data(gpu_out_arr, arr_len);
 	STOP_RECORD_TIMER(gpu_time_outdata_cpy);
 	
 	for(unsigned int i = 0; i<arr_len; i++){

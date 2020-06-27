@@ -68,8 +68,8 @@ void cuda_cpy_input_data(int * in_arr, unsigned int length){
  *
  * Return Values:   None
 *******************************************************************************/
-void cuda_cpy_output_data(){
-	CUDA_CALL(cudaMemcpy(gpu_out_arr, pointers_arrs[ind2_arr], arr_length*sizeof(int), cudaMemcpyDeviceToHost));
+void cuda_cpy_output_data(int * out_arr, unsigned int length){
+	CUDA_CALL(cudaMemcpy(out_arr, pointers_arrs[ind2_arr], length*sizeof(int), cudaMemcpyDeviceToHost));
 	
 }
 
