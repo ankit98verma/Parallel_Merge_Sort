@@ -16,9 +16,12 @@ using namespace std;
 #include <cuda_runtime.h>
 #include "cuda_sorting.cuh"
 
-#define GPU_THREAD_NUM		1024
 
 void export_gpu_outputs(bool verbose);
+
+int * cpu_arr;
+unsigned int arr_len;
+int * gpu_out_arr;
 
 cudaEvent_t start;
 cudaEvent_t stop;
@@ -79,7 +82,7 @@ void time_profile_gpu(bool verbose){
 
 
 	START_TIMER();
-		cudacall_merge_sort(GPU_THREAD_NUM);
+		cudacall_merge_sort();
 	STOP_RECORD_TIMER(gpu_time_sorting);
     err = cudaGetLastError();
     if (cudaSuccess != err){
@@ -92,15 +95,12 @@ void time_profile_gpu(bool verbose){
     START_TIMER();
 		cuda_cpy_output_data(gpu_out_arr, arr_len);
 	STOP_RECORD_TIMER(gpu_time_outdata_cpy);
-	
-	for(unsigned int i = 0; i<arr_len; i++){
-        cout << gpu_out_arr[i] << endl;
-    }
 
 	if(verbose){
 		printf("GPU Input data copy time: %f ms\n", gpu_time_indata_cpy);
 	    printf("GPU Fill vertices: %f ms\n", gpu_time_sorting);
 		printf("GPU Output data copy time: %f ms\n", gpu_time_outdata_cpy);
+		printf("Total GPU time: %f ms\n",gpu_time_indata_cpy+ gpu_time_sorting + gpu_time_outdata_cpy );
 	}
 }
 
@@ -120,10 +120,10 @@ void time_profile_gpu(bool verbose){
 void init_vars(unsigned int len){
 	arr_len = len;
     cpu_arr = (int *)malloc(arr_len*sizeof(float));
+    gpu_out_arr = (int *)malloc(arr_len*sizeof(int));
     srand(0);
     for(unsigned int i = 0; i<arr_len; i++){
         cpu_arr[i] = rand()%100;
-        // cout << cpu_arr[i] << endl;
     }
 }
 
@@ -160,6 +160,7 @@ int main(int argc, char **argv) {
 	export_gpu_outputs(verbose);
 	
 	free(cpu_arr);
+	free(gpu_out_arr);
 	free_gpu_memory();
 
     return 1;

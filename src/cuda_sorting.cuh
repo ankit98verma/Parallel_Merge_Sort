@@ -12,22 +12,11 @@
 #include "device_launch_parameters.h"
 #include "cuda_calls_helper.h"
 
-#undef  GLOBAL
-#ifdef _GRAV_CUDA_ICOSPHERE_CU_
-#define GLOBAL
-#else
-#define GLOBAL  extern
-#endif
-
-
-GLOBAL int * gpu_out_arr;
-
-GLOBAL unsigned int arr_len;
-GLOBAL int * cpu_arr;
+#define GPU_THREAD_NUM		1024
 
 void cuda_cpy_input_data(int * in_arr, unsigned int length);
 
-void cudacall_merge_sort(int);
+void cudacall_merge_sort();
 
 void cuda_cpy_output_data(int * out_arr, unsigned int length);
 

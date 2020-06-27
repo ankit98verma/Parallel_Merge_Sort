@@ -5,15 +5,6 @@
 	#define _GRAV_CUDA_ICOSPHERE_CU_
 #endif
 
-#include <math.h>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <fstream>
-#include <iostream>
-
-using namespace std;
-
 #include "cuda_sorting.cuh"
 
 
@@ -52,8 +43,6 @@ void cuda_cpy_input_data(int * in_arr, unsigned int length){
 	ind2_arr = 0;						// set the index denoting the latest sum of components of vertices array to 0
 
 	CUDA_CALL(cudaMemcpy(dev_arr, in_arr, arr_length*sizeof(int), cudaMemcpyHostToDevice));
-	
-	gpu_out_arr = (int *)malloc(arr_length*sizeof(int));
 
 }
 
@@ -87,9 +76,6 @@ void free_gpu_memory(){
 	
 	CUDA_CALL(cudaFree(dev_arr));
 	CUDA_CALL(cudaFree(dev_arr_cpy));
-
-
-	free(gpu_out_arr);
 }
 
 
@@ -370,8 +356,8 @@ void kernel_merge_chuncks(int * sums, int * res, const unsigned int length, cons
  *
  * Return Values:   None
 *******************************************************************************/
-void cudacall_merge_sort(int thread_num) {
-	
+void cudacall_merge_sort() {
+	int thread_num = GPU_THREAD_NUM;
 	unsigned int len = arr_length;
 	int n_blocks = min(65535, (len + thread_num  - 1) / thread_num);
 
