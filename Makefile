@@ -67,10 +67,10 @@ LIBS = -L$(CUDA_LIB_PATH) -lcudart -lcurand
 OBJ_GPU = $(addprefix $(OBJDIR)/, $(addprefix gpu-, $(notdir $(addsuffix .o, $(CPP_FILES)))))
 
 # Top level rules
-all: psort
+all: sort
 
-psort: $(OBJ_GPU) $(CUDA_OBJ) $(CUDA_OBJ_FILES)
-	$(GPP) $(FLAGS) -o psort $(INCLUDE) $^ $(LIBS) 
+sort: $(OBJ_GPU) $(CUDA_OBJ) $(CUDA_OBJ_FILES)
+	$(GPP) $(FLAGS) -o sort $(INCLUDE) $^ $(LIBS) 
 
 # Compile C++ Source Files
 $(OBJDIR)/gpu-%.cpp.o: src/%.cpp
@@ -89,7 +89,7 @@ $(CUDA_OBJ): $(CUDA_OBJ_FILES)
 
 # Clean everything including temporary Emacs files
 clean:
-	rm -f psort *.o $(OBJDIR)/*.o *~
+	rm -f sort *.o $(OBJDIR)/*.o *~
 	rm -f src/*~
 
 .PHONY: clean

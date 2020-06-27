@@ -1,28 +1,36 @@
 /*
- * grav_run: Ankit Verma, 2020
+ * main: 
+ *
+ * Ankit Verma, 2020
  *
  * This file runs the merge sorting on GPU
  *
  */
 
+/* C++ includes */
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <iostream>
 
-using namespace std;
-
+/* Cuda includes */
 #include <cuda_runtime.h>
 #include "cuda_sorting.cuh"
 
 
+using namespace std;
+
+
+/* Local functions */
 void export_gpu_outputs(bool verbose);
 
+/* Variable definitions */
 int * cpu_arr;
 unsigned int arr_len;
 int * gpu_out_arr;
 
+/* Definitions for time profiling the GPU program */
 cudaEvent_t start;
 cudaEvent_t stop;
 #define START_TIMER() {                         \
@@ -61,9 +69,9 @@ int check_args(int argc, char **argv){
 /*******************************************************************************
  * Function:        time_profile_gpu
  *
- * Description:     RUNS the GPU code
+ * Description:     Runs the GPU code
  *
- * Arguments:       bool verbose: If true then it will prints messages on the c
+ * Arguments:       bool verbose: If true then it will prints messages on the
  *                  console
  *
  * Return Values:   GPU computational time
@@ -76,11 +84,13 @@ void time_profile_gpu(bool verbose){
 
 	cudaError err;
 
+    /* Fill the input */
 	START_TIMER();
 		cuda_cpy_input_data(cpu_arr, arr_len);
 	STOP_RECORD_TIMER(gpu_time_indata_cpy);
 
 
+    /* Sort the array */
 	START_TIMER();
 		cudacall_merge_sort();
 	STOP_RECORD_TIMER(gpu_time_sorting);
@@ -92,13 +102,14 @@ void time_profile_gpu(bool verbose){
         	cerr << "No kernel error detected" << endl;
     }
 
+    /* Copy the result to the CPU memory */
     START_TIMER();
 		cuda_cpy_output_data(gpu_out_arr, arr_len);
 	STOP_RECORD_TIMER(gpu_time_outdata_cpy);
 
 	if(verbose){
 		printf("GPU Input data copy time: %f ms\n", gpu_time_indata_cpy);
-	    printf("GPU Fill vertices: %f ms\n", gpu_time_sorting);
+	    printf("GPU Sorting time: %f ms\n", gpu_time_sorting);
 		printf("GPU Output data copy time: %f ms\n", gpu_time_outdata_cpy);
 		printf("Total GPU time: %f ms\n",gpu_time_indata_cpy+ gpu_time_sorting + gpu_time_outdata_cpy );
 	}
@@ -121,6 +132,8 @@ void init_vars(unsigned int len){
 	arr_len = len;
     cpu_arr = (int *)malloc(arr_len*sizeof(float));
     gpu_out_arr = (int *)malloc(arr_len*sizeof(int));
+    
+    /* Randomly generate integers b/w 0 to 100 */
     srand(0);
     for(unsigned int i = 0; i<arr_len; i++){
         cpu_arr[i] = rand()%100;
@@ -169,7 +182,7 @@ int main(int argc, char **argv) {
 /*******************************************************************************
  * Function:        export_gpu_outputs
  *
- * Description:     Exports the gpu_vertices, gpu_sorted_vertices, and gpu_potentials
+ * Description:     Exports the gpu output array
  *
  * Arguments:       bool verbose: If true then it will prints messages on the c
  *                  console

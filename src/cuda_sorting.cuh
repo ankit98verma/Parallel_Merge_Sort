@@ -1,8 +1,8 @@
 /*
- * grav_cuda.cuh
- * Kevin Yuh, 2014
- * Revised by Nailen Matschke, 2016
- * Revised by Loko Kung, 2018
+ * cuda_sorting.cuh
+ *
+ * By Ankit Verma, 2020
+ *
  */
 
 #ifndef _GRAV_CUDA_CUH_
