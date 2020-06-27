@@ -25,7 +25,7 @@ GLOBAL int * gpu_out_arr;
 GLOBAL unsigned int arr_len;
 GLOBAL int * cpu_arr;
 
-void cuda_cpy_input_data();
+void cuda_cpy_input_data(int * in_arr, unsigned int length);
 
 void cudacall_merge_sort(int);
 

@@ -74,7 +74,7 @@ void time_profile_gpu(bool verbose){
 	cudaError err;
 
 	START_TIMER();
-		cuda_cpy_input_data();
+		cuda_cpy_input_data(cpu_arr, arr_len);
 	STOP_RECORD_TIMER(gpu_time_indata_cpy);
 
 

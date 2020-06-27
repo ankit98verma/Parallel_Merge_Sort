@@ -23,6 +23,7 @@ int ind2_arr;					// the pointer to contain the address of the sums array
 int * dev_arr;			// it contains the sums of components of each vertex in the device memory (GPU memory)
 int * dev_arr_cpy;		// a copy for the sums of components of each vertex in the device memory (GPU memory)
 
+int arr_length;
 /* Local functions */
 __device__ void get_first_greatest(int * arr, int len, int a, int * res_fg);
 __device__ void get_last_smallest(int * arr, int len, int a, int * res_ls);
@@ -39,19 +40,20 @@ __device__ void get_last_smallest(int * arr, int len, int a, int * res_ls);
  *
  * Return Values:   None
 *******************************************************************************/
-void cuda_cpy_input_data(){
+void cuda_cpy_input_data(int * in_arr, unsigned int length){
+	arr_length = length;
 
-	CUDA_CALL(cudaMalloc((void**) &dev_arr, arr_len * sizeof(int)));
-	CUDA_CALL(cudaMalloc((void**) &dev_arr_cpy, arr_len* sizeof(int)));
+	CUDA_CALL(cudaMalloc((void**) &dev_arr, arr_length * sizeof(int)));
+	CUDA_CALL(cudaMalloc((void**) &dev_arr_cpy, arr_length* sizeof(int)));
 
 	// set the sum pointers
 	pointers_arrs[0] = dev_arr;	
 	pointers_arrs[1] = dev_arr_cpy;
 	ind2_arr = 0;						// set the index denoting the latest sum of components of vertices array to 0
 
-	CUDA_CALL(cudaMemcpy(dev_arr, cpu_arr, arr_len*sizeof(int), cudaMemcpyHostToDevice));
+	CUDA_CALL(cudaMemcpy(dev_arr, in_arr, arr_length*sizeof(int), cudaMemcpyHostToDevice));
 	
-	gpu_out_arr = (int *)malloc(arr_len*sizeof(int));
+	gpu_out_arr = (int *)malloc(arr_length*sizeof(int));
 
 }
 
@@ -67,7 +69,7 @@ void cuda_cpy_input_data(){
  * Return Values:   None
 *******************************************************************************/
 void cuda_cpy_output_data(){
-	CUDA_CALL(cudaMemcpy(gpu_out_arr, pointers_arrs[ind2_arr], arr_len*sizeof(int), cudaMemcpyDeviceToHost));
+	CUDA_CALL(cudaMemcpy(gpu_out_arr, pointers_arrs[ind2_arr], arr_length*sizeof(int), cudaMemcpyDeviceToHost));
 	
 }
 
@@ -370,7 +372,7 @@ void kernel_merge_chuncks(int * sums, int * res, const unsigned int length, cons
 *******************************************************************************/
 void cudacall_merge_sort(int thread_num) {
 	
-	unsigned int len = arr_len;
+	unsigned int len = arr_length;
 	int n_blocks = min(65535, (len + thread_num  - 1) / thread_num);
 
 	unsigned int l = ceil(log2(thread_num)), ind1;
