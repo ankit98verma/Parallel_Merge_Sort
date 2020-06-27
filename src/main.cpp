@@ -16,11 +16,14 @@
 
 #include <cuda_runtime.h>
 
-#include "grav_cuda.cuh"
-
-#include "grav_run.hpp"
+#include "cuda_sorting.cuh"
 
 using namespace std;
+
+
+#define ICOSPHERE_GPU_THREAD_NUM		1024
+
+void export_gpu_outputs(bool verbose);
 
 // (From Eric's code)
 cudaEvent_t start;

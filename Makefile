@@ -11,8 +11,8 @@ OBJDIR = bin
 CUDA_OBJ = $(OBJDIR)/cuda.o
 
 # Input Names
-CUDA_FILES = src/grav_cuda_icosphere.cu
-CPP_FILES = src/grav_cpu.cpp src/grav_run.cpp
+CUDA_FILES = src/cuda_sorting.cu
+CPP_FILES = src/cpu_sorting.cpp src/main.cpp
 
 # ------------------------------------------------------------------------------
 

@@ -7,7 +7,7 @@
 
 #include <math.h>
 
-#include "grav_cuda.cuh"
+#include "cuda_sorting.cuh"
 #include <curand.h>
 
 

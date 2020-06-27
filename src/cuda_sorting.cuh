@@ -10,7 +10,7 @@
 
 
 #include "device_launch_parameters.h"
-#include "grav_cpu.hpp"
+#include "cpu_sorting.hpp"
 #include "cuda_calls_helper.h"
 
 #undef  GLOBAL

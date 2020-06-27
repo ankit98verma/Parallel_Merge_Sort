@@ -20,19 +20,12 @@
 #include <sstream>
 
 
-#include "grav_cpu.hpp"
+#include "cpu_sorting.hpp"
 
 using namespace std;
 
 
 /*Reference for this file: http://www.songho.ca/opengl/gl_sphere.html*/
-
-float const H_ANG = PI/180*72;
-float const ELE_ANG = atanf(1.0f / 2);	// elevation = 26.565 degree
-unsigned int curr_faces_count;
-
-triangle * faces_copy;
-
 
 /* Decleration of local functions */
 // int partition_sum(void * arr, int low, int high);
