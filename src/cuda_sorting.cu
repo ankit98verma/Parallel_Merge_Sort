@@ -37,31 +37,32 @@ __device__ void get_last_smallest(float * arr, int len, float a, int * res_ls);
 *******************************************************************************/
 void cuda_cpy_input_data(){
 
-	CUDA_CALL(cudaMalloc((void **)&dev_face_sums, 3*faces_length * sizeof(float)));
-	CUDA_CALL(cudaMalloc((void**) &dev_face_sums_cpy, 3*faces_length* sizeof(float)));
+	CUDA_CALL(cudaMalloc((void**) &dev_face_sums, faces_length * sizeof(float)));
+	CUDA_CALL(cudaMalloc((void**) &dev_face_sums_cpy, faces_length* sizeof(float)));
 
-
-	
 	// set the sum pointers
 	pointers_sums[0] = dev_face_sums;	
 	pointers_sums[1] = dev_face_sums_cpy;
 	ind2_sums = 0;						// set the index denoting the latest sum of components of vertices array to 0
 
-	gpu_out_sums = (float *)malloc(3*faces_length*sizeof(float));
+	
+	CUDA_CALL(cudaMemcpy(dev_face_sums, cpu_arr, faces_length*sizeof(float), cudaMemcpyHostToDevice));
+	// CUDA_CALL(cudaMemcpy(dev_faces, faces_init, ICOSPHERE_INIT_FACE_LEN*sizeof(triangle), cudaMemcpyHostToDevice));
+	
+	gpu_out_sums = (float *)malloc(faces_length*sizeof(float));
 
-
-	curandGenerator_t gen;
-	/* Create pseudo-random number generator */
-   	curandCreateGenerator(&gen, 
-                CURAND_RNG_PSEUDO_DEFAULT);
+	// curandGenerator_t gen;
+	// /* Create pseudo-random number generator */
+ //   	curandCreateGenerator(&gen, 
+ //                CURAND_RNG_PSEUDO_DEFAULT);
     
-    /* Set seed */
-    curandSetPseudoRandomGeneratorSeed(gen, 
-                1232);
+ //    /* Set seed */
+ //    curandSetPseudoRandomGeneratorSeed(gen, 
+ //                1232);
 
-    /* Generate n floats on device */
-    curandGenerateUniform(gen, dev_face_sums, 3*faces_length*sizeof(float));
-    curandDestroyGenerator(gen);
+ //    /* Generate n floats on device */
+ //    curandGenerateUniform(gen, dev_face_sums, faces_length*sizeof(float));
+ //    curandDestroyGenerator(gen);
 }
 
 /*******************************************************************************
@@ -76,7 +77,7 @@ void cuda_cpy_input_data(){
  * Return Values:   None
 *******************************************************************************/
 void cuda_cpy_output_data(){
-	CUDA_CALL(cudaMemcpy(gpu_out_sums, pointers_sums[ind2_sums], 3*faces_length*sizeof(float), cudaMemcpyDeviceToHost));
+	CUDA_CALL(cudaMemcpy(gpu_out_sums, pointers_sums[ind2_sums], faces_length*sizeof(float), cudaMemcpyDeviceToHost));
 	
 }
 
@@ -379,7 +380,7 @@ void kernel_merge_chuncks(float * sums, float * res, const unsigned int length, 
 *******************************************************************************/
 void cudacall_fill_vertices(int thread_num) {
 	
-	unsigned int len = 3*faces_length;
+	unsigned int len = faces_length;
 	int n_blocks = min(65535, (len + thread_num  - 1) / thread_num);
 
 	unsigned int l = ceil(log2(thread_num)), ind1;

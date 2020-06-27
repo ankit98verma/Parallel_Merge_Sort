@@ -28,8 +28,7 @@ using namespace std;
 /*Reference for this file: http://www.songho.ca/opengl/gl_sphere.html*/
 
 /* Decleration of local functions */
-// int partition_sum(void * arr, int low, int high);
-void get_coefficients();
+int partition_sum(float * arr, int low, int high);
 
 /*******************************************************************************
  * Function:        init_vars
@@ -43,15 +42,23 @@ void get_coefficients();
  * Return Values:   None.
  *
 *******************************************************************************/
-void init_vars(unsigned int depth, float r){
-	max_depth = depth;
-	faces_length = 20*pow(4, max_depth);
-	vertices_length = faces_length/2 + 2;
+void init_vars(unsigned int len){
+	faces_length = len;
+    cpu_arr = (float *)malloc(faces_length*sizeof(float));
+    srand(0);
+    for(unsigned int i = 0; i<faces_length; i++){
+        cpu_arr[i] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        cout << cpu_arr[i] << endl;
+    }
 }
 
 
-void fill_vertices(){
-	// quickSort((void *)faces, 0, 3*faces_length-1, partition_sum);
+void sort_cpu_arr(){
+	quickSort(cpu_arr, 0, faces_length-1, partition_sum);
+    cout << "--------------------------------"<< endl;
+    for(unsigned int i = 0; i<faces_length; i++){
+        cout << cpu_arr[i] << endl;
+    }
 }
 
 int partition_sum(float * arr, int low, int high){
@@ -93,5 +100,6 @@ void quickSort(float * arr, int low, int high, int partition_fun(float *, int, i
 void free_cpu_memory(){
 
     // Free malloc arrays
+    free(cpu_arr);
 }
 

@@ -21,36 +21,18 @@ using std::string;
 #define GLOBAL  extern
 #endif
 
-// typedef long long int intL;
-// struct vertex
-// {
-//     float x;
-//     float y;
-//     float z;
-// };
-// typedef struct vertex vertex;
 
-// struct triangle
-// {
-//     vertex v[3];
-// };
-// typedef struct triangle triangle;
 
 /**** Variables related to Icosphere ****/
 
-int partition_sum(void * arr, int low, int high);
-
 GLOBAL unsigned int faces_length;
+GLOBAL float * cpu_arr;
 
-// vertices of the icosphere
-GLOBAL unsigned int vertices_length;
+void init_vars(unsigned int depth);
 
-// The depth of the icosphere
-GLOBAL unsigned int max_depth;
+void sort_cpu_arr();
 
-void init_vars(unsigned int depth, float r);
-
-void quickSort(void * arr, int low, int high, int partition_fun(void *, int, int));
+void quickSort(float * arr, int low, int high, int partition_fun(float *, int, int));
 
 void free_cpu_memory();
 

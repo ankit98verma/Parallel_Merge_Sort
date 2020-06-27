@@ -31,14 +31,10 @@ saveas(gcf, '../results/icosphere.png');
 %%
 %tmp opsI am not generating any 
 clear;
-g_arr= readtable('../results/gpu_arr.csv');  % skips the first three rows of data
+g_ar= readtable('../results/gpu_arr.csv');  % skips the first three rows of data
 
-g = g_arr.sums;
+% v = vertices.x + vertices.y+ vertices.z;
+v = vertices.sums;
 figure()
-plot(0:length(g)-1, g);
-
-c_arr= readtable('../results/cpu_arr.csv');  % skips the first three rows of data
-c = c_arr.sums;
-figure()
-plot(0:length(c)-1, c);
+plot(0:length(v)-1, v);
 

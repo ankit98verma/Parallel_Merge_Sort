@@ -24,6 +24,7 @@ using namespace std;
 #define ICOSPHERE_GPU_THREAD_NUM		1024
 
 void export_gpu_outputs(bool verbose);
+void export_cpu_outputs(bool verbose);
 
 // (From Eric's code)
 cudaEvent_t start;
@@ -73,7 +74,7 @@ int check_args(int argc, char **argv){
 *******************************************************************************/
 void time_profile_gpu(bool verbose){
 
-	float gpu_time_icosphere = 0, gpu_time_fill_vertices = 0;
+	float gpu_time_fill_vertices = 0;
 	float gpu_time_indata_cpy = 0;
 	float gpu_time_outdata_cpy = 0;
 
@@ -95,12 +96,13 @@ void time_profile_gpu(bool verbose){
         	cerr << "No kernel error detected" << endl;
     }
 
+    sort_cpu_arr();
+
     START_TIMER();
 		cuda_cpy_output_data();
 	STOP_RECORD_TIMER(gpu_time_outdata_cpy);
 	if(verbose){
 		printf("GPU Input data copy time: %f ms\n", gpu_time_indata_cpy);
-	    printf("GPU Icosphere generation time: %f ms\n", gpu_time_icosphere);
 	    printf("GPU Fill vertices: %f ms\n", gpu_time_fill_vertices);
 		printf("GPU Output data copy time: %f ms\n", gpu_time_outdata_cpy);
 	}
@@ -113,15 +115,14 @@ void time_profile_gpu(bool verbose){
  *                  compatible .mat file
  *
  * Arguments:       int depth - needed for icosphere calculation
- *                  float radius - radius of the sphere
  *                  bool verbose: If true then it will prints messages on the c
  *                  console
  *
  * Return Values:   none
 *******************************************************************************/
-void run(int depth, float radius, bool verbose){
+void run(int len, bool verbose){
 
-	init_vars(depth, radius);
+	init_vars(len);
 
 	if(verbose)
 		cout << "\n----------Running GPU Code----------\n" << endl;
@@ -147,19 +148,7 @@ int main(int argc, char **argv) {
 	if(check_args(argc, argv))
 		return 0;
 
-
 	int len = atoi(argv[1]);
-	int thres = 10;
-
-#ifdef GPU_ONLY
-	thres = 12;
-#endif
-
-	if(len >= thres){
-		cout << "Depth should be less than " << thres << endl;
-		cout << "Exiting! " << endl;
-		return -1;
-	}
 
 	bool verbose = (bool)atoi(argv[2]);
 	
@@ -168,10 +157,11 @@ int main(int argc, char **argv) {
 	else
 		cout << "Verbose OFF" << endl;
 
-	float r = 1;
-	run(len, r, verbose);
+	run(len, verbose);
 
 	export_gpu_outputs(verbose);
+
+	export_cpu_outputs(verbose);
 
     return 1;
 }
@@ -188,30 +178,31 @@ int main(int argc, char **argv) {
 *******************************************************************************/
 void export_gpu_outputs(bool verbose){
 
-	// cout << "Exporting: gpu_sorted_vertices.csv"<<endl;
+    cout << "Exporting: gpu_arr.csv"<<endl;
 
-	// string filename1 = "results/gpu_sorted_vertices.csv";
-	// ofstream obj_stream;
-	// obj_stream.open(filename1);
-	// obj_stream << "x, y, z" << endl;
-	// vertex * v = (vertex *) gpu_out_faces;
-	// cout <<"-----------------------" << endl;
-	// for(unsigned int i=0; i< 3*faces_length; i++){
-	// 	obj_stream << v[i].x << ", " << v[i].y << ", " << v[i].z << endl;
-	// }
-	// obj_stream.close();
-
-
-
-    cout << "Exporting: gpu_sums.csv"<<endl;
-
-    string filename2 = "results/gpu_sums.csv";
+    string filename2 = "results/gpu_arr.csv";
     ofstream obj_stream2;
     obj_stream2.open(filename2);
     obj_stream2 << "sums" << endl;
     cout <<"-----------------------" << endl;
-    for(unsigned int i=0; i< 3*faces_length; i++){
+    for(unsigned int i=0; i< faces_length; i++){
         obj_stream2 << gpu_out_sums[i] << endl;
+    }
+    obj_stream2.close();
+}
+
+
+void export_cpu_outputs(bool verbose){
+
+    cout << "Exporting: cpu_arr.csv"<<endl;
+
+    string filename2 = "results/cpu_arr.csv";
+    ofstream obj_stream2;
+    obj_stream2.open(filename2);
+    obj_stream2 << "sums" << endl;
+    cout <<"-----------------------" << endl;
+    for(unsigned int i=0; i< faces_length; i++){
+        obj_stream2 << cpu_arr[i] << endl;
     }
     obj_stream2.close();
 }
