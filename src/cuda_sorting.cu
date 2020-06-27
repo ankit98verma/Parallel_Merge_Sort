@@ -6,20 +6,26 @@
 #endif
 
 #include <math.h>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <fstream>
+#include <iostream>
+
+using namespace std;
+
 #include "cuda_sorting.cuh"
 
 
 /* Local variables */
-
-float * pointers_arrs[2];		// stores the index of the pointers_arrs which points to the most updated sums array
+int * pointers_arrs[2];		// stores the index of the pointers_arrs which points to the most updated sums array
 int ind2_arr;					// the pointer to contain the address of the sums array
-float * dev_arr;			// it contains the sums of components of each vertex in the device memory (GPU memory)
-float * dev_arr_cpy;		// a copy for the sums of components of each vertex in the device memory (GPU memory)
-
+int * dev_arr;			// it contains the sums of components of each vertex in the device memory (GPU memory)
+int * dev_arr_cpy;		// a copy for the sums of components of each vertex in the device memory (GPU memory)
 
 /* Local functions */
-__device__ void get_first_greatest(float * arr, int len, float a, int * res_fg);
-__device__ void get_last_smallest(float * arr, int len, float a, int * res_ls);
+__device__ void get_first_greatest(int * arr, int len, int a, int * res_fg);
+__device__ void get_last_smallest(int * arr, int len, int a, int * res_ls);
 
 /*******************************************************************************
  * Function:        cuda_cpy_input_data
@@ -35,18 +41,17 @@ __device__ void get_last_smallest(float * arr, int len, float a, int * res_ls);
 *******************************************************************************/
 void cuda_cpy_input_data(){
 
-	CUDA_CALL(cudaMalloc((void**) &dev_arr, arr_len * sizeof(float)));
-	CUDA_CALL(cudaMalloc((void**) &dev_arr_cpy, arr_len* sizeof(float)));
+	CUDA_CALL(cudaMalloc((void**) &dev_arr, arr_len * sizeof(int)));
+	CUDA_CALL(cudaMalloc((void**) &dev_arr_cpy, arr_len* sizeof(int)));
 
 	// set the sum pointers
 	pointers_arrs[0] = dev_arr;	
 	pointers_arrs[1] = dev_arr_cpy;
 	ind2_arr = 0;						// set the index denoting the latest sum of components of vertices array to 0
 
+	CUDA_CALL(cudaMemcpy(dev_arr, cpu_arr, arr_len*sizeof(int), cudaMemcpyHostToDevice));
 	
-	CUDA_CALL(cudaMemcpy(dev_arr, cpu_arr, arr_len*sizeof(float), cudaMemcpyHostToDevice));
-	
-	gpu_out_arr = (float *)malloc(arr_len*sizeof(float));
+	gpu_out_arr = (int *)malloc(arr_len*sizeof(int));
 
 }
 
@@ -62,7 +67,7 @@ void cuda_cpy_input_data(){
  * Return Values:   None
 *******************************************************************************/
 void cuda_cpy_output_data(){
-	CUDA_CALL(cudaMemcpy(gpu_out_arr, pointers_arrs[ind2_arr], arr_len*sizeof(float), cudaMemcpyDeviceToHost));
+	CUDA_CALL(cudaMemcpy(gpu_out_arr, pointers_arrs[ind2_arr], arr_len*sizeof(int), cudaMemcpyDeviceToHost));
 	
 }
 
@@ -110,8 +115,8 @@ void free_gpu_memory(){
  * 					of "s[idx]" and "s[start]" are used for comparison and "ind[idx]" and
  * 					"ind[start]" are sorted accordingly.
  *
- * Arguments:       float * s: The array of sums of vertices
- * 					float * r: The array to which the sorted sums array will be stored
+ * Arguments:       int * s: The array of sums of vertices
+ * 					int * r: The array to which the sorted sums array will be stored
  * 					int * ind: The array of indices of vertices
  * 					int * ind_res: The array to which the sorted indices array will be saved.
  *					unsigned int idx: The start of first array
@@ -121,7 +126,7 @@ void free_gpu_memory(){
  * Return Values:   None
 *******************************************************************************/
 __device__
-void dev_merge(float * s, float * r, unsigned int idx, unsigned int start, unsigned int end){
+void dev_merge(int * s, int * r, unsigned int idx, unsigned int start, unsigned int end){
 	unsigned int c=idx;
 	unsigned int i=idx;unsigned int j=start;
 	while(j<end && i<start){
@@ -183,8 +188,8 @@ void dev_merge(float * s, float * r, unsigned int idx, unsigned int start, unsig
  * 					by copying the elements to the shared memory and then copying the results
  * 					back to the global memory
  *
- * Arguments:       float * sums: The array of sums of vertices
- * 					float * res: The array to which the sorted sums array will be stored
+ * Arguments:       int * sums: The array of sums of vertices
+ * 					int * res: The array to which the sorted sums array will be stored
  * 					int * ind: The array of indices of vertices
  * 					int * ind_res: The array to which the sorted indices array will be saved.
  *					const unsigned int length: The total length of the array
@@ -193,10 +198,10 @@ void dev_merge(float * s, float * r, unsigned int idx, unsigned int start, unsig
  * Return Values:   None
 *******************************************************************************/
 __global__
-void kernel_merge_sort(float * sums, float * res, const unsigned int length, const unsigned int r){
+void kernel_merge_sort(int * sums, int * res, const unsigned int length, const unsigned int r){
 
-	__shared__ float sh_sums[1024];
-	__shared__ float sh_res[1024];
+	__shared__ int sh_sums[1024];
+	__shared__ int sh_res[1024];
 	unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	const unsigned int numthrds = blockDim.x * gridDim.x;
 
@@ -279,8 +284,8 @@ void kernel_merge_sort(float * sums, float * res, const unsigned int length, con
  * 					at each element of the array. Let us say we have two arrays, each of size
  *					1024 elements, then total of 2048 threads are used to merge the two arrays.
  *
- * Arguments:       float * sums: The array of sums of vertices
- * 					float * res: The array to which the sorted sums array will be stored
+ * Arguments:       int * sums: The array of sums of vertices
+ * 					int * res: The array to which the sorted sums array will be stored
  * 					int * ind: The array of indices of vertices
  * 					int * ind_res: The array to which the sorted indices array will be saved.
  *					const unsigned int length: The total length of the array
@@ -289,7 +294,7 @@ void kernel_merge_sort(float * sums, float * res, const unsigned int length, con
  * Return Values:   None
 *******************************************************************************/
 __global__
-void kernel_merge_chuncks(float * sums, float * res, const unsigned int length, const unsigned int r){
+void kernel_merge_chuncks(int * sums, int * res, const unsigned int length, const unsigned int r){
 	
 	unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	const unsigned int numthrds = blockDim.x * gridDim.x;
@@ -377,7 +382,7 @@ void cudacall_merge_sort(int thread_num) {
 
 	}
 
-	// now sort the chunks of 1024 floats
+	// now sort the chunks of 1024 ints
 	l = ceil(log2(n_blocks));
 	for(int i=0; i<l; i++){
 		ind1 = (ind1+1)%2;
@@ -399,16 +404,16 @@ void cudacall_merge_sort(int thread_num) {
  *
  *  					ref_fg = argmin_j (a < arr2[j]).
  *
- * Arguments:       floar * arr: The array in which the first greatest is to be found
+ * Arguments:       int * arr: The array in which the first greatest is to be found
  * 					int len: The length of the array
- * 					float a: The value with respect to which the first greatest has 
+ * 					int a: The value with respect to which the first greatest has 
  * 								to be found
  * 					int * res_fg: It is used to return the result
  *
  * Return Values:   None
 *******************************************************************************/
 __device__
-void get_first_greatest(float * arr, int len, float a, int * res_fg){
+void get_first_greatest(int * arr, int len, int a, int * res_fg){
 	int first = 0, last = len - 1;
 	while (first <= last)
 	{
@@ -433,16 +438,16 @@ void get_first_greatest(float * arr, int len, float a, int * res_fg){
  *
  *  					ref_ls = argmax_j (arr2[j] < a).
  *
- * Arguments:       floar * arr: The array in which the last smallest is to be found
+ * Arguments:       int * arr: The array in which the last smallest is to be found
  * 					int len: The length of the array
- * 					float a: The value with respect to which the last smallest has 
+ * 					int a: The value with respect to which the last smallest has 
  * 								to be found
  * 					int * res_fg: It is used to return the result
  *
  * Return Values:   None
 *******************************************************************************/
 __device__
-void get_last_smallest(float * arr, int len, float a, int * res_ls){
+void get_last_smallest(int * arr, int len, int a, int * res_ls){
 	int first = 0, last = len - 1;
 	while (first <= last)
 	{

@@ -20,10 +20,10 @@
 #endif
 
 
-GLOBAL float * gpu_out_arr;
+GLOBAL int * gpu_out_arr;
 
 GLOBAL unsigned int arr_len;
-GLOBAL float * cpu_arr;
+GLOBAL int * cpu_arr;
 
 void cuda_cpy_input_data();
 

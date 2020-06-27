@@ -88,9 +88,15 @@ void time_profile_gpu(bool verbose){
     	if(verbose)
         	cerr << "No kernel error detected" << endl;
     }
+
     START_TIMER();
 		cuda_cpy_output_data();
 	STOP_RECORD_TIMER(gpu_time_outdata_cpy);
+	
+	for(unsigned int i = 0; i<arr_len; i++){
+        cout << gpu_out_arr[i] << endl;
+    }
+
 	if(verbose){
 		printf("GPU Input data copy time: %f ms\n", gpu_time_indata_cpy);
 	    printf("GPU Fill vertices: %f ms\n", gpu_time_sorting);
@@ -113,10 +119,11 @@ void time_profile_gpu(bool verbose){
 *******************************************************************************/
 void init_vars(unsigned int len){
 	arr_len = len;
-    cpu_arr = (float *)malloc(arr_len*sizeof(float));
+    cpu_arr = (int *)malloc(arr_len*sizeof(float));
     srand(0);
     for(unsigned int i = 0; i<arr_len; i++){
-        cpu_arr[i] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+        cpu_arr[i] = rand()%100;
+        // cout << cpu_arr[i] << endl;
     }
 }
 
@@ -147,13 +154,13 @@ int main(int argc, char **argv) {
 
 	if(verbose)
 		cout << "\n----------Running GPU Code----------\n" << endl;
+	
 	time_profile_gpu(verbose);
 
+	export_gpu_outputs(verbose);
 	
 	free(cpu_arr);
 	free_gpu_memory();
-
-	export_gpu_outputs(verbose);
 
     return 1;
 }
@@ -175,7 +182,7 @@ void export_gpu_outputs(bool verbose){
     string filename2 = "results/gpu_arr.csv";
     ofstream obj_stream2;
     obj_stream2.open(filename2);
-    obj_stream2 << "sums" << endl;
+    obj_stream2 << "array" << endl;
     cout <<"-----------------------" << endl;
     for(unsigned int i=0; i< arr_len; i++){
         obj_stream2 << gpu_out_arr[i] << endl;
