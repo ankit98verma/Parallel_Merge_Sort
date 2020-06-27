@@ -1,0 +1,288 @@
+CS 179: GPU Computing
+Project: Generating the Geopotential Model 
+Written by: Ankit Verma, Garima Aggarwal
+
+--------------------------------------------------------------------------------
+Motivation:
+In geophysics, a geopotential model is the theoretical analysis of measuring and calculating the effects of Earth's gravitational field.
+Geopotential for homogeneous spheres can be calculated from Newton's law of universal gravitation. But in reality, Earth is not exactly spherical, mainly because of its rotation around the polar axis that makes its shape slightly oblate. If this shape were perfectly known together with the exact mass density ρ = ρ(x, y, z), geopotential could be evaluated with numerical methods to find a more accurate model for Earth's gravitational field. However, the situation is in fact the opposite. By observing the orbits of spacecraft and the Moon, Earth's gravitational field can be determined quite accurately. This estimated gravitational model from various missions has been combined to produce what is now referred to as the spherical harmonics of the gravitational potential.
+
+The higher order gravitational potentials play a very important role for objects of irregular shapes like asteroids. The higher order terms of gravitational potential can change the simulated orbit of the spacecraft around the asteroid. Hence a GPU implementation of calculation of gravitational potential would accelerate the design of space missions(especially the mission in which a irregular body is involved).
+
+--------------------------------------------------------------------------------
+Aim:
+The aim of this project is to implement the calculation of the gravitational potential map of a celestial body (Earth in our case) in a given space and generate a heat map of the space demonstrating the contributions of higher order terms to the gravitational potential.
+
+--------------------------------------------------------------------------------
+Overview of Project/Algorithms:
+
+The project is divided into two parts which are as follows:
+1. {Ankit Verma} Generate a set of points uniformly distributed over a sphere of given radius. To perform this task "geodesic polyhedrons" are used. More specially we are using icosahedron to generate a uniformly sampled sphere. An icosahedron is a polygon of equilateral 12 triangles. Following link gives a description of geodesic polyhedrons (including icosahedron): https://en.wikipedia.org/wiki/Geodesic_polyhedron
+	
+A icosphere of depth 0 is nothing but a icosahedron (each vertex of icosahedron is located at given radius from the origin). A icosphere of depth 1 is made as follows:
+	a. Each triangle of the polyhedron (icosahedron) is divided into 4 new triangles by taking a mid point of each edge of the triangle and now each vertex is project on to the radius of the sphere which is being sampled by icosahedron. 
+Similarly a icosphere of depth 2 can be made by taking its faces and performing the above operation on them. We increase the depth of icosphere go to depth 1, 2 ... More the depth of the icosphere more the number of samples of the sphere. A icosphere of depth 10 gives more than 10 million points on the sphere!
+
+2. {Garima Aggarwal} Calculation of gravitational potential at the set of points generated. 
+The geopotential calculation involves the summation of spherical harmonics. An n-order spherical harmonic would mean a summation of (n+2)*(n+1)/2 terms. The case dealt in this project is when n=20, i.e., every location on the sphere would involve a summation of 231 terms. Hence, as the depth of the icosahedron increases, the number of locations on the sphere increases and so does this calculation. This then becomes time-consuming and hence, requires the need for GPU to produce the gravitational potential model for the entire sphere.
+
+Lastly, producing a heat-map denoting contribution of specific (/all) terms to gravitational potential to visualize the results is 
+
+--------------------------------------------------------------------------------
+GPU OPTIMISATION and specifics
+
+There are two modules in the code:
+
+1. Generation of uniform set of points on a sphere
+
+The generation of uniformly distributed set of points is done in two steps:
+    a) Generation of icosphere to a certain depth
+    b) Removal of duplicate vertices from the list of vertices which is obtained from list of faces.
+        i.  Sort the list of vertices obtained from the list of faces with respect to the sum of x, y and z component of the vertices. This will club all the vertices with same sum of components together. Note that the vertices with same sum of components need not be equal to each other. Hence this will require to process the output further which is described in the next step.
+        ii. Go through the vertices whose sum of components are equal and mark the duplicate vertices.
+        iii.Remove the duplicate vertices and give the final array of vertices.
+
+We have two algorithms for generating the icosphere whose approach to the problem is described as briefly:
+(A) Navie GPU icosphere generation
+    In this approach one thread is assigned to each face. Each thread divide the face into four parts and stores the results. More detail on this can be found in grav_cuda.cu file.
+
+(B) Optimized GPU icosphere generation
+    In this approach, 4 threads are assigned to each face. Each thread finds one part of the equally divided face and stores the resulting face. More detail on this can be found in grav_cuda.cu file.
+
+Once we complete the icosphere generation, we obtain the array of vertices from the array of faces by type-casting the faces array to vertices.
+We have two approach for sorting the vertices array:
+(A) Naive merge sort: 
+    This is a naive implementation of merge sort, this access the global memory to sort the complete array
+(B) Optimized merge sort: 
+    This approach uses shared memory to sort the chuncks of 1024 vertices and then uses a "modified parallel" merge algorithm to merge these chunks of 1024 vertices together.
+
+Once the array has been sorted, the dupicate vertices are marked and removed.
+
+Note that each vertices consists of 3 floating points and it will a huge burden on the memory to directly sort the vertices hence instead of sorting the vertices we sort the "indices" of the vertices based on the sum of components of the vertices. Once the sorting of the "indices" of the vertices is complete then we update the position of vertices in the vertices array accroding to the sorted array of "indices".
+
+A COMPARISON ON THE COMPUTATIONAL RUN TIME on icosphere generation and filling the vertices for CPU and different algorithm is shown below.
+
+*************************************************************************************************************************
+        |                   CPU                     |                               GPU                                 |
+        -----------------------------------------------------------------------------------------------------------------
+Depth   |   Icosphere(ms)   |   Fill Vertices ms)   |           Icosphere (ms)      |           Fill Vertices(ms)       |
+        |                   |                       |--------------------------------------------------------------------
+        |                   |                       |   Naive       |   Optimized   |   Naive           |   Optimized   |
+--------|-------------------|-----------------------|---------------|---------------|-------------------|---------------|
+0       |   0.004096        |   0.010976            |   0.02512     |   0.025088    |   0.14032         |   0.1368      |
+1       |   0.012032        |   0.03808             |   0.053568    |   0.033952    |   0.370208        |   0.209408    |
+2       |   0.025984        |   0.181376            |   0.076896    |   0.045504    |   1.19376         |   0.431808    |
+3       |   0.098048        |   0.996384            |   0.116512    |   0.067808    |   4.220512        |   0.46304     |
+4       |   0.366656        |   5.72304             |   0.193504    |   0.092896    |   0.193504        |   0.495488    |
+5       |   1.436832        |   36.507679           |   0.277184    |   0.153696    |   65.428452       |   0.889632    |
+6       |   5.754272        |   209.055237          |   0.380128    |   0.266752    |   263.786285      |   2.496576    |
+7       |   23.199455       |   1186.422852         |   0.69552     |   0.635104    |   990.288147      |   8.966912    |
+8       |   95.330658       |   8339.12793          |   1.97264     |   2.28368     |   4040.03833      |   40.978081   |
+9       |   332.109558      |   59076.25            |   7.600992    |   8.520064    |   16494.310547    |   169.167038  |
+10      |   -               |   -                   |   -           |   33.302719   |   -               |   727.909668  |
+11      |   -               |   -                   |   -           |   133.33728   |   -               |   2737.139648 |
+*************************************************************************************************************************
+
+The '-' has been put wherever the output is not applicable.
+
+2. Potential Calculation
+
+Potential is calculated at each vertex on the sphere. 
+U(r) = Σ(n=0:N) Σ(m=0:n) (C_nm*V_nm + S_nm*W_nm)
+where,
+	r is the position coordinate of the vertex
+	N is the order of geo-potential magnitude (terms which generate the potential model)
+	C_nm, S_nm = gravitational potential coefficients, which are stored in resources/GRAVITY_MODEL.txt  
+	V, W- are terms to be calculated for the geopotential calculation 
+	(NOTE: V_nm,W_nm follow a recursive formula and hence, are interdependent and intra-dependent on previous values of V, W)
+
+Now, for order, N = 20, there are 231 terms of V, W which need to be calculated for the calculation of the geopotential at every vertex.
+There are multiple approaches to find the terms and their summation for large number of vertices spread on the globe. Four different ways on GPU have been implemented for the calculation of the potential in src\grav_cuda_potential.cu
+
+(A) naive_gpu_spherical_harmonics
+
+    Naive implementation of he CPU code in GPU.
+    Computes the potential for every vertex in each thread.
+    Effective when large number of vertices on the sphere- can then use GPU effectively
+    Each thread handles each vertex independently
+    Number of thread/block = 256
+
+(B) optimal_kernel_gravitational1
+    
+    Every block is aasigned to every vertex.
+    Threads/block = 256;
+    Every thread contains calculates one of the 231 terms used in the summation of the potential
+    shmem shares stores the 231 terms of the potential calculation
+    U[thread_index]  = summation of the 231 terms
+    U[thread_index]  = calculated from the reduction method #3
+    This method should give improved computational time when number of vertices on the sphere is small, even
+    though it wouldnt be a huge time savior.
+    In case of small number of vertices, GPU overload happens because of 256 threads assigned to each vertex.
+    No shared memory for V[21*21], W[21*21].
+    Max shared memory: 256*4bytes = 1KB
+    Drawback: Not very effective for higher number of vertices
+     
+(c) optimal_kernel_gravitational2
+	
+    Every block is assigned to every vertex.
+    Threads/block = 256; %256 threads for reduction summation
+    Every thread contains calculates one of the 231 terms used in the summation of the potential
+    shmem shares stores the 231 terms of the potential calculation
+    U[thread_index]  = summation of the 231 terms
+    U[thread_index]  = calculated from the reduction method #3
+    This method should give improved computational time when number of vertices on the sphere is small, even
+    though it wouldnt be a huge time savior.
+    In case of small number of vertices, GPU overload happens because of 256 threads assigned to each vertex.
+    Shared memory for V[21*21], W[21*21].
+    Max shared memory: (256 + 462 + 462)*4bytes ~ 4.7KB
+    Shared memory for V,W. Shared across threads in a block.
+    Advantages: Reduces the computational time immensely for less number of vertices.
+UNLIKE (B), (C) has shared memory for V,W which is shared across all threads in the block
+
+(D) optimal_kernel_gravitational3
+
+    Every block is assigned to 16 consecutive vertices.
+    Threads/block = 32;
+    First 16 threads conpute V for the 16 vertices.
+    Next 16 threads in the block compute W for the 16 vertices
+    This method should give improved computational time when fairly large number
+    of vertices on the sphere though it wouldnt be a huge time savior.
+    Shared memory for VW[21*22*16]
+    Max shared memory: (21*22*16)*4bytes ~ 28.875KB < 48KB
+    Shared memory for V,W. Shared across threads in a block.
+    Advantages: Reduces the computational time immensely for fairly large number of vertices.
+    Drawback: Thread warping because first 16 threads compute different from next 16 threads in the block
+
+    WHY 32 threads only::: Limited by the Shared memory
+
+(E) optimal_kernel_gravitational4
+
+    Every block is assigned to 32 consecutive vertices.
+    Threads/block = 64;
+    First 16 threads conpute V for the 16 vertices.
+    Next 16 threads in the block compute W for the 16 vertices
+    This method should give improved computational time when fairly large number
+    of vertices on the sphere though it wouldnt be a huge time savior.
+    Shared memory for VW[21*22*32]
+    Max shared memory: (21*22*32)*4bytes ~ 57.75KB < 64KB
+    NOTE:::::::::: This would work if the shared memory can be expanded to 64 KB.
+    Shared memory for V,W. Shared across threads in a block.
+    Advantages: Reduces the computational time immensely for fairly large number of vertices.
+                No Thread warping because 32 threads do the same action
+                Couldnt verify due to limited shared memory :(
+
+
+A COMPARISON ON THE COMPUTATIONAL RUN TIME on potential
+
+*****************************************************************************************************************************************
+Depth   |   vertices    |       Naive               |       optimal1            |       optimal 2           |       optimal 3           |
+        |               |---------------------------|---------------------------|---------------------------|---------------------------|
+        |               |   Blocks  |   Time        |   Blocks  |   Time        |   Blocks  |   Time        |   Blocks  |   Time        |
+------------------------|---------------------------|---------------------------|---------------------------|---------------------------|
+1       |   42          |   1       |   7.433728    |   42      |   6.94864     |   42      |   0.242464    |   3       |   0.845152    |
+2       |   162         |   1       |   7.442624    |   162     |   7.44784     |   162     |   0.520384    |   11      |   0.843264    |
+3       |   642         |   3       |   7.10624     |   642     |   9.380288    |   642     |   1.891776    |   41      |   0.843808    |
+4       |   2562        |   11      |   7.147488    |   2562    |   15.77888    |   2562    |   6.145216    |   161     |   2.39392     |
+5       |   10242       |   41      |   7.199264    |   10242   |   44.018559   |   10242   |   24.265633   |   641     |   7.067584    |
+6       |   40962       |   161     |   9.339776    |   40962   |   145.509048  |   40962   |   98.028641   |   2561    |   27.718657   |
+7       |   163842      |   641     |   17.604769   |   65535   |   515.582275  |   65535   |   368.951477  |   10241   |   111.339874  |
+8       |   655362      |   2561    |   48.579041   |   65535   |   2067.05957  |   65535   |   1323.918213 |   40961   |   382.091064  |
+9       |   2621442     |   10241   |   171.657318  |   65535   |   8163.0625   |   65535   |   5332.202637 |   65535   |   1511.087891 |
+10      |   10485762    |   40961   |   654.541504  |   65535   |   32047.78125 |   65535   |   21240.99219 |   65535   |   6038.051758 |
+*****************************************************************************************************************************************
+
+As observed from the table, better use of the shared memory enabled faster computation as one progresses from
+optimal 1 to optimal 3 kernels. Thus, optimal2 is best for depth =1,2; optimal3 is best for depth = 3,4,5 while Naive
+proves to be the best for depth >=6 because of the large number of vertices. It thus makes sense to parallely compute
+potential for vertices than parallise the components of the potential for each vertex due to limited shared memory space.
+
+--------------------------------------------------------------------------------
+FILE/CODE STRUCTURE
+
+Following is the file and code structure:
+.
+├── Code
+│   ├── bin                             -> Contains the object files
+│   ├── Makefile
+│   ├── resources
+│   │   ├── EGM_jared_20_only_data.txt  -> Reference data (un-used at the moment)
+│   │   ├── EGM_jared_20.txt            -> Reference data (un-used at the moment)
+│   │   ├── GRAVITY_MODEL.txt           -> Contains the coefficients of spherical harmonics (used)
+│   │   └── jared_EGM20_model.csv       -> Reference data (un-used at the moment)
+│   ├── results                         -> Visualized results from the GPU code
+│   │   ├── Maps_2D
+│   │   │   ├── gp2D_0.png
+│   │   │   ├── gp2D_1.png
+│   │   │   ├── gp2D_2.png
+│   │   │   ├── gp2D_3.png
+│   │   │   ├── gp2D_4.png
+│   │   │   ├── gp2D_5.png
+│   │   │   ├── gp2D_6.png
+│   │   │   ├── gp2D_7.png
+│   │   │   ├── gp2D_8.png
+│   │   │   └── gp2D_9.png
+│   │   ├── Maps_3D
+│   │   │   ├── gp3D_0.png
+│   │   │   ├── gp3D_1.png
+│   │   │   ├── gp3D_2.png
+│   │   │   ├── gp3D_3.png
+│   │   │   ├── gp3D_4.png
+│   │   │   ├── gp3D_5.png
+│   │   │   ├── gp3D_6.png
+│   │   │   ├── gp3D_7.png
+│   │   │   ├── gp3D_8.png
+│   │   │   └── gp3D_9.png
+│   │   ├── potential_time.xlsx         -> The excel sheet containing the time profile of GPU potential calculation code
+│   │   └── time_profile.ods            -> The excel sheet containing the time profile of GPU icosphere generation code
+│   ├── src
+│   │   ├── cuda_calls_helper.h         -> The cuda call helper file
+│   │   ├── grav_cpu.cpp                -> The CPU code of the project
+│   │   ├── grav_cpu.hpp                -> Contains the CPU modules declarations and is the header file for grav_cpu.cpp
+│   │   ├── grav_cuda.cuh               -> Contains the GPU modules declarations and is the header file for grav_cuda.cu
+│   │   ├── grav_cuda_icosphere.cu      -> The GPU code for generation of icosphere (Ankit)
+│   │   ├── grav_cuda_potential.cu      -> The GPU code for calculation of potential terms (Garima)
+│   │   ├── grav_run.cpp                -> The code containing the "main( , )" function. It runs both the CPU and GPU modules of the code.              
+│   │   ├── grav_run.hpp                -> The header for for grav_run.cpp
+│   │   ├── ta_utilities.cpp            -> The TA utility file to select the coldest GPU
+│   │   └── ta_utilities.hpp            -> The header for for ta_utilities.cpp
+│   └── utilities 
+│       ├── heat_map.m                  -> Matlab file to generate heatmaps
+│       └── visulaize_icosphere.m       -> Matlab file to visualize icosphere
+└── README                              -> The README file of the project containing the details of the prject and instructions
+
+
+--------------------------------------------------------------------------------
+INSTRUCTIONS on how to run the CPU demo
+
+Please follow the following instructions:
+
+1. Go into the "Code" folder by using "cd Code"
+2. Build the project by running "make clean all" (without quotes). This would create object files in "bin/" folder and creates three executable files named "cpu_run" (which executes only CPU version of the code), "gpu_run" (which executes only GPU version of the code) and "both_run" (which executes both CPU and GPU version of the code and also verifies the GPU code against the CPU code. It verifies the icosphere generated by Ankit and the potential calculated by Garima) .
+3. Run the code as follows:
+	./cpu_run <depth of icosphere> <verbose 0/1> <Icosphere optimization level {0 or 1}>  <Geopotential optimization level {0 to 3}>
+	./gpu_run <depth of icosphere> <verbose 0/1> <Icosphere optimization level {0 or 1}>  <Geopotential optimization level {0 to 3}>
+	./both_run <depth of icosphere> <verbose 0/1> <Icosphere optimization level {0 or 1}>  <Geopotential optimization level {0 to 3}>
+
+	The code will generate icospheres from depth 0 to the value provided in argument "depth of icosphere". For each depth it will calculate the gravitational potential. (Please check the email sent to you for visualization of gravity potential). If verbose is set to 1 then a detailed messages will be printed else only essential messages will be printed. Icosphere Optimisation level can be either 0 (Naive Implementation) OR 1 (Optimal implementation). Geopotential Optimisation level can be any integer from 0 to 3. 0 represents Naive Implementation while 1,2,3 represent different Optimal implemnetations for potential calculation as described above. Note Optimisation level 4 has also been coded in the grav_cuda_potential.cu but it tends to exceed the shared memory of 48KB. That kernel would work if the shared memory can be expanded to 64KB.
+
+	The CPU takes quite some time to run the program for more than 9. Hence it is recommended to give value for "depth of icosphere" less than 10. We have provided the output of the code till depth 10 in the next section.
+
+
+--------------------------------------------------------------------------------
+LIMITATION:
+The curren program has following limitation:
+
+1. Depth has to be less than 12: This is at depth 12 the number of vertices is large enough to cause the illegal memory access in CUDA.
+2. Icosphere Naive cannot run for depth 10 or more. Same reason as point 1. 
+
+ 
+--------------------------------------------------------------------------------
+Future Work:
+Similar to using the spherical harmonic coefficients for Geopotential model, similar model can be generated for other known bodies in space, like asteroids, whose geopotential model would be interesting to study in the field of astrodynamics.
+We can also compute the gravitational acceleration just like gravitational potential which can be used in integrators for trajectory design.
+
+--------------------------------------------------------------------------------
+References:
+Geopotential model: Satellite Orbits, by Oliver Montebruck
+Geodesic polyhedron: https://en.wikipedia.org/wiki/Geodesic_polyhedron
+Icosphere generation: http://www.songho.ca/opengl/gl_sphere.html
