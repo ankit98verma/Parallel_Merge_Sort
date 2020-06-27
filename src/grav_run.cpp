@@ -19,7 +19,6 @@
 #include "grav_cuda.cuh"
 
 #include "grav_run.hpp"
-#include "ta_utilities.hpp"
 
 using namespace std;
 
@@ -117,16 +116,16 @@ void time_profile_gpu(bool verbose, float * res){
 	STOP_RECORD_TIMER(gpu_time_indata_cpy);
 
 
-	START_TIMER();
-		cudacall_icosphere(ICOSPHERE_GPU_THREAD_NUM);
-	STOP_RECORD_TIMER(gpu_time_icosphere);
-	err = cudaGetLastError();
-    if (cudaSuccess != err){
-        cerr << "Error " << cudaGetErrorString(err) << endl;
-    }else{
-    	if(verbose)
-        	cerr << "No kernel error detected" << endl;
-    }
+	// START_TIMER();
+	// 	cudacall_icosphere(ICOSPHERE_GPU_THREAD_NUM);
+	// STOP_RECORD_TIMER(gpu_time_icosphere);
+	// err = cudaGetLastError();
+ //    if (cudaSuccess != err){
+ //        cerr << "Error " << cudaGetErrorString(err) << endl;
+ //    }else{
+ //    	if(verbose)
+ //        	cerr << "No kernel error detected" << endl;
+ //    }
 
 	START_TIMER();
 		cudacall_fill_vertices(ICOSPHERE_GPU_THREAD_NUM);
@@ -176,35 +175,10 @@ void run(int depth, float radius, bool verbose, float * cpu_res, float * gpu_res
 	cpu_res[0] = 0;
 	cpu_res[1] = 0;
 
-#if defined(CPU_ONLY) || defined(CPU_GPU_ONLY)
-	if(verbose)
-		cout << "\n----------Running CPU Code----------\n" << endl;
-	time_profile_cpu(verbose, cpu_res);
-#endif
-
-#if defined(GPU_ONLY) || defined(CPU_GPU_ONLY)
 	if(verbose)
 		cout << "\n----------Running GPU Code----------\n" << endl;
 	time_profile_gpu(verbose, gpu_res);
-#endif
 
-#ifdef CPU_GPU_ONLY
-	float cpu_time = cpu_res[0] +  cpu_res[1];
-	float gpu_time = gpu_res[0] +  gpu_res[1];
-	if(verbose){
-		cout << "\nTime taken by the CPU is: " << cpu_time << " milliseconds" << endl;
-		cout << "Time taken by the GPU is: " << gpu_time << " milliseconds" << endl;
-		cout << "Speed up factor: " << cpu_time/gpu_time << "\n" << endl;
-	}
-
-	// calculate the distance b/w two points of icosphere
-	float norm0 = faces[0].v[0].x*faces[0].v[0].x + faces[0].v[0].y*faces[0].v[0].y + faces[0].v[0].z*faces[0].v[0].z;
-	float norm1 = faces[0].v[1].x*faces[0].v[1].x + faces[0].v[1].y*faces[0].v[1].y + faces[0].v[1].z*faces[0].v[1].z;
-	float ang = acosf((faces[0].v[0].x*faces[0].v[1].x + faces[0].v[0].y*faces[0].v[1].y + faces[0].v[0].z*faces[0].v[1].z)/(norm1*norm0));
-	float dis = radius*ang;
-	if(verbose)
-		cout << "Distance b/w any two points of icosphere is: " << dis << " (unit is same as radius)\n" << endl;
-#endif
 	
 	free_cpu_memory();
 
@@ -281,17 +255,19 @@ void export_gpu_outputs(bool verbose){
 	}
 	obj_stream.close();
 
-    // cout << "Exporting: gpu_vertices.csv"<<endl;
 
-    // string filename2 = "results/gpu_vertices.csv";
-    // ofstream obj_stream2;
-    // obj_stream2.open(filename2);
-    // obj_stream2 << "x, y, z" << endl;
-    // cout <<"-----------------------" << endl;
-    // for(unsigned int i=0; i< vertices_length; i++){
-    //     obj_stream2 << gpu_out_vertices[i].x <<", "<< gpu_out_vertices[i].y <<", "<< gpu_out_vertices[i].z  << endl;
-    // }
-    // obj_stream2.close();
+
+    cout << "Exporting: gpu_sums.csv"<<endl;
+
+    string filename2 = "results/gpu_sums.csv";
+    ofstream obj_stream2;
+    obj_stream2.open(filename2);
+    obj_stream2 << "sums" << endl;
+    cout <<"-----------------------" << endl;
+    for(unsigned int i=0; i< 3*faces_length; i++){
+        obj_stream2 << gpu_out_sums[i] << endl;
+    }
+    obj_stream2.close();
 }
 
 /*******************************************************************************

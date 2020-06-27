@@ -24,8 +24,9 @@
 GLOBAL triangle * gpu_out_faces;
 GLOBAL vertex * gpu_out_vertices;
 
+GLOBAL float * gpu_out_sums;
+
 GLOBAL vertex * dev_vertices;
-GLOBAL float * gpu_out_potential;
 GLOBAL vertex * dev_vertices_ico;
 
 void cuda_cpy_input_data();

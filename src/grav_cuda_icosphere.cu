@@ -8,6 +8,7 @@
 #include <math.h>
 
 #include "grav_cuda.cuh"
+#include <curand.h>
 
 
 /* Local variables */
@@ -75,7 +76,7 @@ void cuda_cpy_input_data(){
 	ind2_faces = 0;						// set the index denoting the latest face array to 0
 
 	// set the sum pointers
-	pointers_sums[0] = dev_face_sums;
+	pointers_sums[0] = dev_face_sums;	
 	pointers_sums[1] = dev_face_sums_cpy;
 	ind2_sums = 0;						// set the index denoting the latest sum of components of vertices array to 0
 
@@ -86,6 +87,21 @@ void cuda_cpy_input_data(){
 
 	gpu_out_faces = (triangle *)malloc(faces_length*sizeof(triangle));
 	gpu_out_vertices = (vertex *) malloc(vertices_length*sizeof(vertex));
+	gpu_out_sums = (float *)malloc(3*faces_length*sizeof(float));
+
+
+	curandGenerator_t gen;
+	/* Create pseudo-random number generator */
+   	curandCreateGenerator(&gen, 
+                CURAND_RNG_PSEUDO_DEFAULT);
+    
+    /* Set seed */
+    curandSetPseudoRandomGeneratorSeed(gen, 
+                1232);
+
+    /* Generate n floats on device */
+    curandGenerateUniform(gen, dev_face_sums, 3*faces_length*sizeof(float));
+    curandDestroyGenerator(gen);
 }
 
 /*******************************************************************************
@@ -102,6 +118,8 @@ void cuda_cpy_input_data(){
 void cuda_cpy_output_data(){
 	CUDA_CALL(cudaMemcpy(gpu_out_faces, pointers_faces[ind2_faces], faces_length*sizeof(triangle), cudaMemcpyDeviceToHost));
 	CUDA_CALL(cudaMemcpy(gpu_out_vertices, dev_vertices_ico, vertices_length*sizeof(vertex), cudaMemcpyDeviceToHost));
+	CUDA_CALL(cudaMemcpy(gpu_out_sums, dev_face_sums, 3*faces_length*sizeof(float), cudaMemcpyDeviceToHost));
+	
 }
 
 /*******************************************************************************

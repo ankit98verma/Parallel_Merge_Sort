@@ -30,9 +30,11 @@ saveas(gcf, '../results/icosphere.png');
 
 %%
 %tmp opsI am not generating any 
-vertices = readtable('../results/gpu_sorted_vertices.csv');  % skips the first three rows of data
+clear;
+vertices = readtable('../results/gpu_sums.csv');  % skips the first three rows of data
 
-v = vertices.x + vertices.y+ vertices.z;
+% v = vertices.x + vertices.y+ vertices.z;
+v = vertices.sums;
 figure()
 plot(0:length(v)-1, v);
 

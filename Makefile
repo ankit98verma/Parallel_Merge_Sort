@@ -12,7 +12,7 @@ CUDA_OBJ = $(OBJDIR)/cuda.o
 
 # Input Names
 CUDA_FILES = src/grav_cuda_icosphere.cu
-CPP_FILES = src/grav_cpu.cpp src/grav_run.cpp src/ta_utilities.cpp
+CPP_FILES = src/grav_cpu.cpp src/grav_run.cpp
 
 # ------------------------------------------------------------------------------
 
@@ -69,16 +69,10 @@ OBJ_GPU = $(addprefix $(OBJDIR)/, $(addprefix gpu-, $(notdir $(addsuffix .o, $(C
 OBJ_BOTH = $(addprefix $(OBJDIR)/, $(addprefix both-, $(notdir $(addsuffix .o, $(CPP_FILES)))))
 
 # Top level rules
-all: cpu_run gpu_run both_run
+all: run 
 
-cpu_run: $(OBJ_CPU) $(CUDA_OBJ) $(CUDA_OBJ_FILES)
-	$(GPP) $(FLAGS) -o cpu_run $(INCLUDE) $^ $(LIBS) 
-
-gpu_run: $(OBJ_GPU) $(CUDA_OBJ) $(CUDA_OBJ_FILES)
-	$(GPP) $(FLAGS) -o gpu_run $(INCLUDE) $^ $(LIBS) 
-
-both_run: $(OBJ_BOTH) $(CUDA_OBJ) $(CUDA_OBJ_FILES)
-	$(GPP) $(FLAGS) -o both_run $(INCLUDE) $^ $(LIBS) 
+run: $(OBJ_GPU) $(CUDA_OBJ) $(CUDA_OBJ_FILES)
+	$(GPP) $(FLAGS) -o run $(INCLUDE) $^ $(LIBS) 
 
 # Compile C++ Source Files
 $(OBJDIR)/cpu-%.cpp.o: src/%.cpp
@@ -103,7 +97,7 @@ $(CUDA_OBJ): $(CUDA_OBJ_FILES)
 
 # Clean everything including temporary Emacs files
 clean:
-	rm -f cpu_run gpu_run both_run *.o $(OBJDIR)/*.o *~
+	rm -f run *.o $(OBJDIR)/*.o *~
 	rm -f src/*~
 
 .PHONY: clean
