@@ -8,25 +8,19 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <iostream>
-#include <iomanip>
-
-#include <cuda_runtime.h>
-
-#include "cuda_sorting.cuh"
 
 using namespace std;
 
+#include <cuda_runtime.h>
+#include "cuda_sorting.cuh"
 
-#define ICOSPHERE_GPU_THREAD_NUM		1024
+#define GPU_THREAD_NUM		1024
 
 void export_gpu_outputs(bool verbose);
-void export_cpu_outputs(bool verbose);
 
-// (From Eric's code)
 cudaEvent_t start;
 cudaEvent_t stop;
 #define START_TIMER() {                         \
@@ -74,7 +68,7 @@ int check_args(int argc, char **argv){
 *******************************************************************************/
 void time_profile_gpu(bool verbose){
 
-	float gpu_time_fill_vertices = 0;
+	float gpu_time_sorting = 0;
 	float gpu_time_indata_cpy = 0;
 	float gpu_time_outdata_cpy = 0;
 
@@ -86,8 +80,8 @@ void time_profile_gpu(bool verbose){
 
 
 	START_TIMER();
-		cudacall_fill_vertices(ICOSPHERE_GPU_THREAD_NUM);
-	STOP_RECORD_TIMER(gpu_time_fill_vertices);
+		cudacall_merge_sort(GPU_THREAD_NUM);
+	STOP_RECORD_TIMER(gpu_time_sorting);
     err = cudaGetLastError();
     if (cudaSuccess != err){
         cerr << "Error " << cudaGetErrorString(err) << endl;
@@ -95,44 +89,37 @@ void time_profile_gpu(bool verbose){
     	if(verbose)
         	cerr << "No kernel error detected" << endl;
     }
-
-    sort_cpu_arr();
-
     START_TIMER();
 		cuda_cpy_output_data();
 	STOP_RECORD_TIMER(gpu_time_outdata_cpy);
 	if(verbose){
 		printf("GPU Input data copy time: %f ms\n", gpu_time_indata_cpy);
-	    printf("GPU Fill vertices: %f ms\n", gpu_time_fill_vertices);
+	    printf("GPU Fill vertices: %f ms\n", gpu_time_sorting);
 		printf("GPU Output data copy time: %f ms\n", gpu_time_outdata_cpy);
 	}
 }
 
+
 /*******************************************************************************
- * Function:        run
+ * Function:        init_vars
  *
- * Description:     Stores the vertices and corresponding potential in a MATLAB
- *                  compatible .mat file
+ * Description:     This function initializes global variables. This should be
+ *					the first function to be called from this file.
  *
- * Arguments:       int depth - needed for icosphere calculation
- *                  bool verbose: If true then it will prints messages on the c
- *                  console
+ * Arguments:       unsigned int depth: The maximum depth of the icosphere
+ *					float r: The radius of sphere
  *
- * Return Values:   none
+ * Return Values:   None.
+ *
 *******************************************************************************/
-void run(int len, bool verbose){
-
-	init_vars(len);
-
-	if(verbose)
-		cout << "\n----------Running GPU Code----------\n" << endl;
-	time_profile_gpu(verbose);
-
-	
-	free_cpu_memory();
-
+void init_vars(unsigned int len){
+	arr_len = len;
+    cpu_arr = (float *)malloc(arr_len*sizeof(float));
+    srand(0);
+    for(unsigned int i = 0; i<arr_len; i++){
+        cpu_arr[i] = static_cast <float> (rand()) / static_cast <float> (RAND_MAX);
+    }
 }
-
 
 /*******************************************************************************
  * Function:        main
@@ -157,11 +144,17 @@ int main(int argc, char **argv) {
 	else
 		cout << "Verbose OFF" << endl;
 
-	run(len, verbose);
+	init_vars(len);
+
+	if(verbose)
+		cout << "\n----------Running GPU Code----------\n" << endl;
+	time_profile_gpu(verbose);
+
+	
+	free(cpu_arr);
+	free_gpu_memory();
 
 	export_gpu_outputs(verbose);
-
-	export_cpu_outputs(verbose);
 
     return 1;
 }
@@ -185,24 +178,8 @@ void export_gpu_outputs(bool verbose){
     obj_stream2.open(filename2);
     obj_stream2 << "sums" << endl;
     cout <<"-----------------------" << endl;
-    for(unsigned int i=0; i< faces_length; i++){
-        obj_stream2 << gpu_out_sums[i] << endl;
-    }
-    obj_stream2.close();
-}
-
-
-void export_cpu_outputs(bool verbose){
-
-    cout << "Exporting: cpu_arr.csv"<<endl;
-
-    string filename2 = "results/cpu_arr.csv";
-    ofstream obj_stream2;
-    obj_stream2.open(filename2);
-    obj_stream2 << "sums" << endl;
-    cout <<"-----------------------" << endl;
-    for(unsigned int i=0; i< faces_length; i++){
-        obj_stream2 << cpu_arr[i] << endl;
+    for(unsigned int i=0; i< arr_len; i++){
+        obj_stream2 << gpu_out_arr[i] << endl;
     }
     obj_stream2.close();
 }

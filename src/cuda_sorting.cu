@@ -6,17 +6,15 @@
 #endif
 
 #include <math.h>
-
 #include "cuda_sorting.cuh"
-#include <curand.h>
 
 
 /* Local variables */
 
-float * pointers_sums[2];		// stores the index of the pointers_sums which points to the most updated sums array
-int ind2_sums;					// the pointer to contain the address of the sums array
-float * dev_face_sums;			// it contains the sums of components of each vertex in the device memory (GPU memory)
-float * dev_face_sums_cpy;		// a copy for the sums of components of each vertex in the device memory (GPU memory)
+float * pointers_arrs[2];		// stores the index of the pointers_arrs which points to the most updated sums array
+int ind2_arr;					// the pointer to contain the address of the sums array
+float * dev_arr;			// it contains the sums of components of each vertex in the device memory (GPU memory)
+float * dev_arr_cpy;		// a copy for the sums of components of each vertex in the device memory (GPU memory)
 
 
 /* Local functions */
@@ -37,32 +35,19 @@ __device__ void get_last_smallest(float * arr, int len, float a, int * res_ls);
 *******************************************************************************/
 void cuda_cpy_input_data(){
 
-	CUDA_CALL(cudaMalloc((void**) &dev_face_sums, faces_length * sizeof(float)));
-	CUDA_CALL(cudaMalloc((void**) &dev_face_sums_cpy, faces_length* sizeof(float)));
+	CUDA_CALL(cudaMalloc((void**) &dev_arr, arr_len * sizeof(float)));
+	CUDA_CALL(cudaMalloc((void**) &dev_arr_cpy, arr_len* sizeof(float)));
 
 	// set the sum pointers
-	pointers_sums[0] = dev_face_sums;	
-	pointers_sums[1] = dev_face_sums_cpy;
-	ind2_sums = 0;						// set the index denoting the latest sum of components of vertices array to 0
+	pointers_arrs[0] = dev_arr;	
+	pointers_arrs[1] = dev_arr_cpy;
+	ind2_arr = 0;						// set the index denoting the latest sum of components of vertices array to 0
 
 	
-	CUDA_CALL(cudaMemcpy(dev_face_sums, cpu_arr, faces_length*sizeof(float), cudaMemcpyHostToDevice));
-	// CUDA_CALL(cudaMemcpy(dev_faces, faces_init, ICOSPHERE_INIT_FACE_LEN*sizeof(triangle), cudaMemcpyHostToDevice));
+	CUDA_CALL(cudaMemcpy(dev_arr, cpu_arr, arr_len*sizeof(float), cudaMemcpyHostToDevice));
 	
-	gpu_out_sums = (float *)malloc(faces_length*sizeof(float));
+	gpu_out_arr = (float *)malloc(arr_len*sizeof(float));
 
-	// curandGenerator_t gen;
-	// /* Create pseudo-random number generator */
- //   	curandCreateGenerator(&gen, 
- //                CURAND_RNG_PSEUDO_DEFAULT);
-    
- //    /* Set seed */
- //    curandSetPseudoRandomGeneratorSeed(gen, 
- //                1232);
-
- //    /* Generate n floats on device */
- //    curandGenerateUniform(gen, dev_face_sums, faces_length*sizeof(float));
- //    curandDestroyGenerator(gen);
 }
 
 /*******************************************************************************
@@ -77,7 +62,7 @@ void cuda_cpy_input_data(){
  * Return Values:   None
 *******************************************************************************/
 void cuda_cpy_output_data(){
-	CUDA_CALL(cudaMemcpy(gpu_out_sums, pointers_sums[ind2_sums], faces_length*sizeof(float), cudaMemcpyDeviceToHost));
+	CUDA_CALL(cudaMemcpy(gpu_out_arr, pointers_arrs[ind2_arr], arr_len*sizeof(float), cudaMemcpyDeviceToHost));
 	
 }
 
@@ -93,11 +78,11 @@ void cuda_cpy_output_data(){
 *******************************************************************************/
 void free_gpu_memory(){
 	
-	CUDA_CALL(cudaFree(dev_face_sums));
-	CUDA_CALL(cudaFree(dev_face_sums_cpy));
+	CUDA_CALL(cudaFree(dev_arr));
+	CUDA_CALL(cudaFree(dev_arr_cpy));
 
 
-	free(gpu_out_sums);
+	free(gpu_out_arr);
 }
 
 
@@ -378,17 +363,17 @@ void kernel_merge_chuncks(float * sums, float * res, const unsigned int length, 
  *
  * Return Values:   None
 *******************************************************************************/
-void cudacall_fill_vertices(int thread_num) {
+void cudacall_merge_sort(int thread_num) {
 	
-	unsigned int len = faces_length;
+	unsigned int len = arr_len;
 	int n_blocks = min(65535, (len + thread_num  - 1) / thread_num);
 
 	unsigned int l = ceil(log2(thread_num)), ind1;
 	for(int i=0; i<l; i++){
 		ind1 = i%2;
-		ind2_sums = (i+1)%2;
+		ind2_arr = (i+1)%2;
 		unsigned int r = pow(2, i+1);
-		kernel_merge_sort<<<n_blocks, thread_num>>>(pointers_sums[ind1], pointers_sums[ind2_sums], len, r);
+		kernel_merge_sort<<<n_blocks, thread_num>>>(pointers_arrs[ind1], pointers_arrs[ind2_arr], len, r);
 
 	}
 
@@ -396,9 +381,9 @@ void cudacall_fill_vertices(int thread_num) {
 	l = ceil(log2(n_blocks));
 	for(int i=0; i<l; i++){
 		ind1 = (ind1+1)%2;
-		ind2_sums = (ind2_sums+1)%2;
+		ind2_arr = (ind2_arr+1)%2;
 		unsigned int r = pow(2, i+1)*1024;
-		kernel_merge_chuncks<<<n_blocks, thread_num>>>(pointers_sums[ind1], pointers_sums[ind2_sums], len, r);
+		kernel_merge_chuncks<<<n_blocks, thread_num>>>(pointers_arrs[ind1], pointers_arrs[ind2_arr], len, r);
 	}
 }
 

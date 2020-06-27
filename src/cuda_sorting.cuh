@@ -10,7 +10,6 @@
 
 
 #include "device_launch_parameters.h"
-#include "cpu_sorting.hpp"
 #include "cuda_calls_helper.h"
 
 #undef  GLOBAL
@@ -21,11 +20,14 @@
 #endif
 
 
-GLOBAL float * gpu_out_sums;
+GLOBAL float * gpu_out_arr;
+
+GLOBAL unsigned int arr_len;
+GLOBAL float * cpu_arr;
 
 void cuda_cpy_input_data();
 
-void cudacall_fill_vertices(int);
+void cudacall_merge_sort(int);
 
 void cuda_cpy_output_data();
 

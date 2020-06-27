@@ -12,7 +12,7 @@ CUDA_OBJ = $(OBJDIR)/cuda.o
 
 # Input Names
 CUDA_FILES = src/cuda_sorting.cu
-CPP_FILES = src/cpu_sorting.cpp src/main.cpp
+CPP_FILES =  src/main.cpp
 
 # ------------------------------------------------------------------------------
 
