@@ -1,8 +1,7 @@
 /*
- * grav_run: Ankit Verma, Garima Aggarwal, 2020
+ * grav_run: Ankit Verma, 2020
  *
- * This file runs the CPU implementation and GPU implementation
- * of the gravitational field calculation.
+ * This file runs the merge sorting on GPU
  *
  */
 
