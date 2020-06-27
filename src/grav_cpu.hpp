@@ -50,40 +50,23 @@ typedef struct triangle triangle;
 
 int partition_sum(void * arr, int low, int high);
 
-// faces of the icosphere
-GLOBAL triangle * faces;
-GLOBAL triangle faces_init[ICOSPHERE_INIT_FACE_LEN];
 GLOBAL unsigned int faces_length;
 
 // vertices of the icosphere
-GLOBAL vertex * vertices;
 GLOBAL unsigned int vertices_length;
 
 // The depth of the icosphere
 GLOBAL unsigned int max_depth;
 
-// Information of sphere
-GLOBAL float radius;
 
-/**** Variables related to gravitational potential ****/
-GLOBAL float coeff[N_SPHERICAL+1][N_SPHERICAL+2];
-GLOBAL float * potential;
 
 void init_vars(unsigned int depth, float r);
 void allocate_cpu_mem(bool verbose);
 void init_icosphere();
 
-void create_icoshpere_navie();
-void create_icoshpere();
 void fill_vertices();
-void quickSort_points(int low, int high);
-void fill_common_theta();
 
 void quickSort(void * arr, int low, int high, int partition_fun(void *, int, int));
-
-void export_csv(triangle * f, string filename1, string filename2, bool verbose);
-
-void get_grav_pot();
 
 void free_cpu_memory();
 

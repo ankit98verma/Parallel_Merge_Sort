@@ -64,25 +64,17 @@ LIBS = -L$(CUDA_LIB_PATH) -lcudart -lcurand
 # ------------------------------------------------------------------------------
 
 # C++ Object Files
-OBJ_CPU = $(addprefix $(OBJDIR)/, $(addprefix cpu-, $(notdir $(addsuffix .o, $(CPP_FILES)))))
 OBJ_GPU = $(addprefix $(OBJDIR)/, $(addprefix gpu-, $(notdir $(addsuffix .o, $(CPP_FILES)))))
-OBJ_BOTH = $(addprefix $(OBJDIR)/, $(addprefix both-, $(notdir $(addsuffix .o, $(CPP_FILES)))))
 
 # Top level rules
-all: run 
+all: psort
 
-run: $(OBJ_GPU) $(CUDA_OBJ) $(CUDA_OBJ_FILES)
-	$(GPP) $(FLAGS) -o run $(INCLUDE) $^ $(LIBS) 
+psort: $(OBJ_GPU) $(CUDA_OBJ) $(CUDA_OBJ_FILES)
+	$(GPP) $(FLAGS) -o psort $(INCLUDE) $^ $(LIBS) 
 
 # Compile C++ Source Files
-$(OBJDIR)/cpu-%.cpp.o: src/%.cpp
-	$(GPP) $(FLAGS) -D CPU_ONLY -c -o $@ $(INCLUDE) $< 
-
 $(OBJDIR)/gpu-%.cpp.o: src/%.cpp
-	$(GPP) $(FLAGS) -D GPU_ONLY -c -o $@ $(INCLUDE) $< 
-
-$(OBJDIR)/both-%.cpp.o: src/%.cpp
-	$(GPP) $(FLAGS) -D CPU_GPU_ONLY -c -o $@ $(INCLUDE) $< 
+	$(GPP) $(FLAGS) -c -o $@ $(INCLUDE) $< 
 
 # Compile CUDA Source Files
 $(OBJDIR)/%.cu.o: src/%.cu
@@ -97,7 +89,7 @@ $(CUDA_OBJ): $(CUDA_OBJ_FILES)
 
 # Clean everything including temporary Emacs files
 clean:
-	rm -f run *.o $(OBJDIR)/*.o *~
+	rm -f psort *.o $(OBJDIR)/*.o *~
 	rm -f src/*~
 
 .PHONY: clean

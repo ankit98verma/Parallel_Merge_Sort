@@ -21,21 +21,14 @@
 #endif
 
 
-GLOBAL triangle * gpu_out_faces;
-GLOBAL vertex * gpu_out_vertices;
-
 GLOBAL float * gpu_out_sums;
 
-GLOBAL vertex * dev_vertices;
-GLOBAL vertex * dev_vertices_ico;
-
 void cuda_cpy_input_data();
-
-void cudacall_icosphere(int);
 
 void cudacall_fill_vertices(int);
 
 void cuda_cpy_output_data();
+
 void free_gpu_memory();
 
 #endif

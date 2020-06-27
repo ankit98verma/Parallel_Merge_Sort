@@ -13,18 +13,6 @@
 
 /* Local variables */
 
-int ind2_faces;					// stores the index of the pointers_faces which points to the most updated faces array
-triangle * pointers_faces[2];	// the pointer to contain the address of the faces array
-triangle * dev_faces;			// contains the faces array in the device memory (GPU memory)
-triangle * dev_faces_cpy;		// a copy for faces array  in the device memory (GPU memory)
-
-int * pointers_inds[2];         // stores the index of the pointers_inds which points to the most updated indices array
-int ind2_inds;					// the pointer to contain the address of the indices array
-int * dev_face_vert_ind;		// contains the indices of faces in the device memory (GPU memory)
-int * dev_face_vert_ind_cpy;	// a copy for indices of faces in the device memory (GPU memory)
-int * dev_face_vert_ind_cpy2;	// another copy for indices of faces in the device memory (GPU memory)
-
-
 float * pointers_sums[2];		// stores the index of the pointers_sums which points to the most updated sums array
 int ind2_sums;					// the pointer to contain the address of the sums array
 float * dev_face_sums;			// it contains the sums of components of each vertex in the device memory (GPU memory)
@@ -32,13 +20,8 @@ float * dev_face_sums_cpy;		// a copy for the sums of components of each vertex 
 
 
 /* Local functions */
-__global__ void kernel_fill_sums_inds(vertex * vs, float * sums, int * inds, const unsigned int vertices_length);
 __device__ void get_first_greatest(float * arr, int len, float a, int * res_fg);
 __device__ void get_last_smallest(float * arr, int len, float a, int * res_ls);
-__global__ void kernel_update_faces(vertex * f_in, vertex * f_out, int * inds, const unsigned int vertices_length);
-/* Local typedefs */
-typedef void (*func_ptr_sub_triangle_t)(triangle, vertex *, triangle *);
-
 
 /*******************************************************************************
  * Function:        cuda_cpy_input_data
@@ -54,39 +37,16 @@ typedef void (*func_ptr_sub_triangle_t)(triangle, vertex *, triangle *);
 *******************************************************************************/
 void cuda_cpy_input_data(){
 
-	CUDA_CALL(cudaMalloc((void **)&dev_faces, faces_length * sizeof(triangle)));
-	CUDA_CALL(cudaMalloc((void **)&dev_faces_cpy, faces_length * sizeof(triangle)));
-
-	CUDA_CALL(cudaMalloc((void **)&dev_face_vert_ind, 3*faces_length * sizeof(int)));
-	CUDA_CALL(cudaMalloc((void **)&dev_face_vert_ind_cpy, 3*faces_length * sizeof(int)));
-	CUDA_CALL(cudaMalloc((void **)&dev_face_vert_ind_cpy2, 3*faces_length * sizeof(int)));
-
 	CUDA_CALL(cudaMalloc((void **)&dev_face_sums, 3*faces_length * sizeof(float)));
 	CUDA_CALL(cudaMalloc((void**) &dev_face_sums_cpy, 3*faces_length* sizeof(float)));
 
-	CUDA_CALL(cudaMalloc((void**) &dev_vertices_ico, vertices_length * sizeof(vertex)));
 
-	// copy the initial icosphere data to the device array
-	CUDA_CALL(cudaMemcpy(dev_faces, faces_init, ICOSPHERE_INIT_FACE_LEN*sizeof(triangle), cudaMemcpyHostToDevice));
-
-
-	// set the face pointers
-	pointers_faces[0] = dev_faces;		
-	pointers_faces[1] = dev_faces_cpy;
-	ind2_faces = 0;						// set the index denoting the latest face array to 0
-
+	
 	// set the sum pointers
 	pointers_sums[0] = dev_face_sums;	
 	pointers_sums[1] = dev_face_sums_cpy;
 	ind2_sums = 0;						// set the index denoting the latest sum of components of vertices array to 0
 
-	// set the indices pointers
-	pointers_inds[0] = dev_face_vert_ind;
-	pointers_inds[1] = dev_face_vert_ind_cpy;
-	ind2_inds = 0;						// set the index denoting the latest indices array to 0
-
-	gpu_out_faces = (triangle *)malloc(faces_length*sizeof(triangle));
-	gpu_out_vertices = (vertex *) malloc(vertices_length*sizeof(vertex));
 	gpu_out_sums = (float *)malloc(3*faces_length*sizeof(float));
 
 
@@ -116,9 +76,7 @@ void cuda_cpy_input_data(){
  * Return Values:   None
 *******************************************************************************/
 void cuda_cpy_output_data(){
-	CUDA_CALL(cudaMemcpy(gpu_out_faces, pointers_faces[ind2_faces], faces_length*sizeof(triangle), cudaMemcpyDeviceToHost));
-	CUDA_CALL(cudaMemcpy(gpu_out_vertices, dev_vertices_ico, vertices_length*sizeof(vertex), cudaMemcpyDeviceToHost));
-	CUDA_CALL(cudaMemcpy(gpu_out_sums, dev_face_sums, 3*faces_length*sizeof(float), cudaMemcpyDeviceToHost));
+	CUDA_CALL(cudaMemcpy(gpu_out_sums, pointers_sums[ind2_sums], 3*faces_length*sizeof(float), cudaMemcpyDeviceToHost));
 	
 }
 
@@ -133,337 +91,14 @@ void cuda_cpy_output_data(){
  * Return Values:   None
 *******************************************************************************/
 void free_gpu_memory(){
-	CUDA_CALL(cudaFree(dev_faces));
-	CUDA_CALL(cudaFree(dev_faces_cpy));
-
-	CUDA_CALL(cudaFree(dev_face_vert_ind));
-	CUDA_CALL(cudaFree(dev_face_vert_ind_cpy));
-	CUDA_CALL(cudaFree(dev_face_vert_ind_cpy2));
-
+	
 	CUDA_CALL(cudaFree(dev_face_sums));
 	CUDA_CALL(cudaFree(dev_face_sums_cpy));
 
-	CUDA_CALL(cudaFree(dev_vertices_ico));
 
-	free(gpu_out_faces);
-	free(gpu_out_vertices);
+	free(gpu_out_sums);
 }
 
-/*******************************************************************************
- * Function:        break_triangle
- *
- * Description:     This function returns the midpoint of the edges of the input
- *					triangle. The output of the triangle is the list of three 
- *					vertices each being the midpoint of the an edge of the triangle.
- *					triangle tri_i = faces[i];
- *
- *									         P0
- *									        / \
- *									  V[0] *---* V[2]
- *									      / \ / \
- *									    P1---*---P2
- *									         V[1]
- *
- *					Where:
- *					INPUT:	face_tmp.v[0] = P0, face_tmp.v[1] = P1, face_tmp.v[2] = P2
- *					OUTPUT:	v_tmp[0] = V[0], v_tmp[1] = V[1], v_tmp[2] = V[2]
- *
- * Arguments:       triangle face_tmp: The triangle whose edges is to be broken into 
- *										two equal parts
- *					vertex * tmp: The array to which the results will be written.
- *					float radius: The radius of the sphere to which the icosphere
- *									is to be project
- *
- *
- * Return Values:   None
-*******************************************************************************/
-__device__ void break_triangle(triangle face_tmp, vertex * v_tmp, float radius) {
-	float x_tmp, y_tmp, z_tmp, scale;
-
-	// Loop over the three vertices of the triangle
-	for(int i=0; i<3; i++){
-
-		// find the midpoint
-		x_tmp = (face_tmp.v[i].x + face_tmp.v[(i+1)%3].x)/2;
-		y_tmp = (face_tmp.v[i].y + face_tmp.v[(i+1)%3].y)/2;
-		z_tmp = (face_tmp.v[i].z + face_tmp.v[(i+1)%3].z)/2;
-
-		// project the point to the sphere
-		scale = radius/sqrtf(x_tmp*x_tmp + y_tmp*y_tmp + z_tmp*z_tmp);
-
-		// store the result
-		v_tmp[i].x = x_tmp*scale;
-		v_tmp[i].y = y_tmp*scale;
-		v_tmp[i].z = z_tmp*scale;
-	}
-}
-
-/*******************************************************************************
- * Function:        sub_triangle_top
- *
- * Description:     This functions stores the trignale P0, V[0], V[2] to the "res". 
- *
- *									         P0
- *									        / \
- *									  V[0] *---* V[2]
- *									      / \ / \
- *									    P1---*---P2
- *									         V[1]
- *
- *					Where:
- *					INPUT:	face_tmp.v[0] = P0, face_tmp.v[1] = P1, face_tmp.v[2] = P2
- *							v_tmp[0] = V[0], v_tmp[1] = V[1], v_tmp[2] = V[2]
- *					OUTPUT:	res.v[0] = P[0], res.v[1] = V[0], res.v[2] = V[2]
- *
- * Arguments:       triangle face_tmp: The triangle which is to be broken.
- *					vertex * v_tmp: The array that contains the middle points of edges
- *									of the triangle.
- *					triangle res: The triangle to which the result is to be written.
- *
- *
- * Return Values:   None
-*******************************************************************************/
-__device__ void sub_triangle_top(triangle face_tmp, vertex * v_tmp, triangle * res) {
-	res->v[0] = face_tmp.v[0];
-	res->v[1] = v_tmp[0];
-	res->v[2] = v_tmp[2];
-}
-
-/*******************************************************************************
- * Function:        sub_triangle_left
- *
- * Description:     This functions stores the trignale V[0], P1, V[1] to the "res". 
- *
- *									         P0
- *									        / \
- *									  V[0] *---* V[2]
- *									      / \ / \
- *									    P1---*---P2
- *									         V[1]
- *
- *					Where:
- *					INPUT:	face_tmp.v[0] = P0, face_tmp.v[1] = P1, face_tmp.v[2] = P2
- *							v_tmp[0] = V[0], v_tmp[1] = V[1], v_tmp[2] = V[2]
- *					OUTPUT:	res.v[0] = V[0], res.v[1] = P1, res.v[2] = V[1]
- *
- * Arguments:       triangle face_tmp: The triangle which is to be broken.
- *					vertex * v_tmp: The array that contains the middle points of edges
- *									of the triangle.
- *					triangle res: The triangle to which the result is to be written.
- *
- *
- * Return Values:   None
-*******************************************************************************/
-__device__ void sub_triangle_left(triangle face_tmp, vertex * v_tmp, triangle * res) {
-	res->v[0] = v_tmp[0];
-	res->v[1] = face_tmp.v[1];
-	res->v[2] = v_tmp[1];
-}
-
-/*******************************************************************************
- * Function:        sub_triangle_right
- *
- * Description:     This functions stores the trignale V[1], P2, V[2] to the "res". 
- *
- *									         P0
- *									        / \
- *									  V[0] *---* V[2]
- *									      / \ / \
- *									    P1---*---P2
- *									         V[1]
- *
- *					Where:
- *					INPUT:	face_tmp.v[0] = P0, face_tmp.v[1] = P1, face_tmp.v[2] = P2
- *							v_tmp[0] = V[0], v_tmp[1] = V[1], v_tmp[2] = V[2]
- *					OUTPUT:	res.v[0] = V[1], res.v[1] = P2, res.v[2] = V[2]
- *
- * Arguments:       triangle face_tmp: The triangle which is to be broken.
- *					vertex * v_tmp: The array that contains the middle points of edges
- *									of the triangle.
- *					triangle res: The triangle to which the result is to be written.
- *
- *
- * Return Values:   None
-*******************************************************************************/
-__device__ void sub_triangle_right(triangle face_tmp, vertex * v_tmp, triangle * res) {
-	res->v[0] = v_tmp[1];
-	res->v[1] = face_tmp.v[2];
-	res->v[2] = v_tmp[2];
-}
-
-/*******************************************************************************
- * Function:        sub_triangle_center
- *
- * Description:     This functions stores the trignale V[0], V[1], V[2] to the "res". 
- *
- *									         P0
- *									        / \
- *									  V[0] *---* V[2]
- *									      / \ / \
- *									    P1---*---P2
- *									         V[1]
- *
- *					Where:
- *					INPUT:	face_tmp.v[0] = P0, face_tmp.v[1] = P1, face_tmp.v[2] = P2
- *							v_tmp[0] = V[0], v_tmp[1] = V[1], v_tmp[2] = V[2]
- *					OUTPUT:	res.v[0] = V[0], res.v[1] = V[1], res.v[2] = V[2]
- *
- * Arguments:       triangle face_tmp: The triangle which is to be broken.
- *					vertex * v_tmp: The array that contains the middle points of edges
- *									of the triangle.
- *					triangle res: The triangle to which the result is to be written.
- *
- *
- * Return Values:   None
-*******************************************************************************/
-__device__ void sub_triangle_center(triangle face_tmp, vertex * v_tmp, triangle * res) {
-	res->v[0] = v_tmp[0];
-	res->v[1] = v_tmp[1];
-	res->v[2] = v_tmp[2];
-}
-
-
-/* contains the list of functions which breaks a triangle into smaller triangle. */
-__device__ func_ptr_sub_triangle_t funcs_list[4] = {sub_triangle_top, sub_triangle_left, sub_triangle_right, sub_triangle_center};
-
-
-/*******************************************************************************
- * Function:        refine_icosphere_kernel
- *
- * Description:     This is a more optimized kernel which refines the icosphere i.e. 
- * 					increase the depth of the icosphere by one. Let us say we want
- * 					the icosphere to depth "d+1", then the array of faces passed to the
- * 					kernel should contain the icosphere faces corresponding to the depth
- * 					"d". Note that for a depth "d" the size of faces array is:
- * 							size of faces array  = 20*4^(d) * sizeof(triangle).
- * 					Note: Size of "triangle" is 36 bytes. 
- * 					Hence it is important to make sure that the "faces_out" passed to 
- * 					the kernel should already have enough memory allocated to it.
- *
- *					The array "faces" contains the faces of icosphere corresponding to the 
- *					depth "d".
- *
- *					In this kernel four threads operate on one face and generate 4 new 
- *					faces and stores the result in the "faces_out" array passed to it.
- *
- *					Say a thread "i" is working on the faces[i]. Then the thread "i"
- *					finds the mid points of the triangle "faces[i]" as shown in the following
- *					diagram.
- *
- *									         P0
- *									        / \
- *									  V[0] *---* V[2]
- *									      / \ / \
- *									    P1---*---P2
- *									         V[1]
- *
- *					Where:
- *							P0 = faces[i].v[0], P1 = faces[i].v[1], P2 = faces[i].v[2]
- * 					Now thread "i" stores the result back to the "faces_out" depending on its
- *					thread index.
- * 					If i%4 == 0 then the thread stores the P0, V[0], V[2] triangle to faces_out[i].
- * 					else if i%4 == 1 then the thread stores the V[0], P1, V[1] triangle to faces_out[i].
- * 					else if i%4 == 2 then the thread stores the V[2], P2, V[0] triangle to faces_out[i].
- * 					else if i%4 == 3 then the thread stores the V[0], V[1], V[2] triangle to faces_out[i].
- *
- * 					It is to be noted that the structure of the kernel is made in a way that we don't
- * 					have any "IF" statement in the kernel hence avoiding the branching in the warp. Also,
- *					we are not using the threads in the "Y" direction i.e. threadIdx.y to keep the memory
- *					access coalesced.
- *
- * Arguments:       triangle faces: The array of faces for depth 'd'
- *					triangle faces_out: The array of faces to which the output is written
- *					const float radius: The radius of the sphere
- *					const unsigned int th_len: The length of the "faces" array.
- *
- * Return Values:   None
-*******************************************************************************/
-__global__ void refine_icosphere_kernel(triangle * faces, triangle * faces_out, const float radius, const unsigned int th_len) {
-	unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	const unsigned int numthrds = blockDim.x * gridDim.x;
-
-	vertex v_tmp[3];
-	triangle v;
-
-	while(idx < 4*th_len){
-		int tri_ind = idx/4;
-		int sub_tri_ind = idx%4;
-		v = faces[tri_ind];
-
-		// break the triangle
-		break_triangle(v, v_tmp, radius);
-
-		// store the result appropriately
-		funcs_list[sub_tri_ind](v, v_tmp, &faces_out[idx]);
-
-		idx += numthrds;
-	}
-
-}
-
-/*******************************************************************************
- * Function:        cudacall_icosphere
- *
- * Description:     This calls the optimized kernel repeatedly to generate the icosphere
- * 					of depth "max_depth". Once the icosphere generation is over then 
- * 					a kernel is called to fills the "sums" array (contains the sum of
- * 					components of each vertex) and the "indices" arraY (contains the
- * 					indices of each vertex in the faces array). The functions
- * 					finds out the number of blocks required with a upper limit of 
- * 					65535.
- *
- * Arguments:       int  thread_num: No. of thread per block
- *
- * Return Values:   None
-*******************************************************************************/
-void cudacall_icosphere(int thread_num) {
-	// each thread creates a sub triangle
-	int ths, n_blocks, ind1;
-	for(int i=0; i<max_depth; i++){
-		ths = 20*pow(4, i);
-		n_blocks = std::min(65535, (ths + 4*thread_num  - 1) / thread_num);
-		ind1 = i%2;
-		ind2_faces = (i+1)%2;
-		refine_icosphere_kernel<<<n_blocks, thread_num>>>(pointers_faces[ind1], pointers_faces[ind2_faces], radius, ths);
-	}
-	int len = 3*faces_length;
-	n_blocks = std::min(65535, (len + thread_num  - 1) / thread_num);
-	kernel_fill_sums_inds<<<n_blocks, thread_num>>>((vertex *)pointers_faces[ind2_faces], dev_face_sums, dev_face_vert_ind, len);
-}
-
-/*******************************************************************************
- * Function:        kernel_fill_sums_inds
- *
- * Description:     This is a simple kernel to fill the "sums" array with the 
- * 					sum of components of each vertex and "inds" array with the 
- *					indices of the vertex array.
- *
- *					A thread "i" operates on one vertex and perform following
- *					operatoin
- *						sums[i] = vs[i].x + vs[i].y + vs[i].z
- *						inds[i] = i
- *
- *					The "sums" and "inds" array are required for sorting and
- *					removing the duplicate arrays.
- *
- * Arguments:       vertex * vs: The array of vertices obtained from list of faces.
- * 					int * sum: The array to contain the sum of components of vertices "vs".
- * 					int * inds: The array to contain the indices corresponding to "vs".
- * 					const unsigned int vertices_length: THe length of the vertices length.
- *
- * Return Values:   None
-*******************************************************************************/
-__global__
-void kernel_fill_sums_inds(vertex * vs, float * sums, int * inds, const unsigned int vertices_length){
-	unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	const unsigned int numthrds = blockDim.x * gridDim.x;
-
-	while(idx < vertices_length){
-		sums[idx] = vs[idx].x + vs[idx].y + vs[idx].z;
-		inds[idx] = idx;
-		idx += numthrds;
-	}
-}
 
 /*******************************************************************************
  * Function:        dev_merge
@@ -500,31 +135,27 @@ void kernel_fill_sums_inds(vertex * vs, float * sums, int * inds, const unsigned
  * Return Values:   None
 *******************************************************************************/
 __device__
-void dev_merge(float * s, float * r, int * ind, int * ind_res, unsigned int idx, unsigned int start, unsigned int end){
+void dev_merge(float * s, float * r, unsigned int idx, unsigned int start, unsigned int end){
 	unsigned int c=idx;
 	unsigned int i=idx;unsigned int j=start;
 	while(j<end && i<start){
 		if(s[i] <= s[j]){
 			r[c] = s[i];
-			ind_res[c] = ind[i];
 			i++;
 		}
 		else{
 			r[c] = s[j];
-			ind_res[c] = ind[j];
 			j++;
 		}
 		c++;
 	}
 	while(i < start){
 		r[c] = s[i];
-		ind_res[c] = ind[i];
 		c++;i++;
 	}
 
 	while(j < end){
 		r[c] = s[j];
-		ind_res[c] = ind[j];
 		c++;j++;
 	}
 }
@@ -576,12 +207,10 @@ void dev_merge(float * s, float * r, int * ind, int * ind_res, unsigned int idx,
  * Return Values:   None
 *******************************************************************************/
 __global__
-void kernel_merge_sort(float * sums, float * res, int * ind, int * ind_res, const unsigned int length, const unsigned int r){
+void kernel_merge_sort(float * sums, float * res, const unsigned int length, const unsigned int r){
 
 	__shared__ float sh_sums[1024];
 	__shared__ float sh_res[1024];
-	__shared__ int sh_ind[1024];
-	__shared__ int sh_indres[1024];
 	unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	const unsigned int numthrds = blockDim.x * gridDim.x;
 
@@ -593,19 +222,17 @@ void kernel_merge_sort(float * sums, float * res, int * ind, int * ind_res, cons
 	while(idx < length){
 		// copy to shared mem
 		sh_sums[threadIdx.x] = sums[idx];
-		sh_ind[threadIdx.x] = ind[idx];
 
 		__syncthreads();
 
 		// perform a step of merge sort
 		if(id%r == 0)
-			dev_merge(sh_sums, sh_res, sh_ind, sh_indres, id, min(t_len, id + stride), min(t_len, id+r));
+			dev_merge(sh_sums, sh_res, id, min(t_len, id + stride), min(t_len, id+r));
 
 		__syncthreads();
 
 		// copy result to global mem
 		res[idx] = sh_res[threadIdx.x];
-		ind_res[idx] = sh_indres[threadIdx.x];
 		
 		__syncthreads();
 		
@@ -676,7 +303,7 @@ void kernel_merge_sort(float * sums, float * res, int * ind, int * ind_res, cons
  * Return Values:   None
 *******************************************************************************/
 __global__
-void kernel_merge_chuncks(float * sums, float * res, int * ind, int * ind_res, const unsigned int length, const unsigned int r){
+void kernel_merge_chuncks(float * sums, float * res, const unsigned int length, const unsigned int r){
 	
 	unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	const unsigned int numthrds = blockDim.x * gridDim.x;
@@ -717,7 +344,6 @@ void kernel_merge_chuncks(float * sums, float * res, int * ind, int * ind_res, c
 		
 		// now place the element
 		res[final_index] = sums[idx];
-		ind_res[final_index] = ind[idx];
 		
 		idx += numthrds;
 	}
@@ -760,9 +386,8 @@ void cudacall_fill_vertices(int thread_num) {
 	for(int i=0; i<l; i++){
 		ind1 = i%2;
 		ind2_sums = (i+1)%2;
-		ind2_inds = ind2_sums;
 		unsigned int r = pow(2, i+1);
-		kernel_merge_sort<<<n_blocks, thread_num>>>(pointers_sums[ind1], pointers_sums[ind2_sums], pointers_inds[ind1], pointers_inds[ind2_inds], len, r);
+		kernel_merge_sort<<<n_blocks, thread_num>>>(pointers_sums[ind1], pointers_sums[ind2_sums], len, r);
 
 	}
 
@@ -771,14 +396,9 @@ void cudacall_fill_vertices(int thread_num) {
 	for(int i=0; i<l; i++){
 		ind1 = (ind1+1)%2;
 		ind2_sums = (ind2_sums+1)%2;
-		ind2_inds = ind2_sums;
 		unsigned int r = pow(2, i+1)*1024;
-		kernel_merge_chuncks<<<n_blocks, thread_num>>>(pointers_sums[ind1], pointers_sums[ind2_sums], pointers_inds[ind1], pointers_inds[ind2_inds], len, r);
+		kernel_merge_chuncks<<<n_blocks, thread_num>>>(pointers_sums[ind1], pointers_sums[ind2_sums], len, r);
 	}
-
-	int out = (ind2_faces + 1) %2;
-	kernel_update_faces<<<n_blocks, thread_num>>>((vertex *)pointers_faces[ind2_faces], (vertex *)pointers_faces[out], pointers_inds[ind2_inds], len);
-	ind2_faces = out;
 }
 
 
@@ -847,30 +467,4 @@ void get_last_smallest(float * arr, int len, float a, int * res_ls){
 			first = mid + 1;
 	}
 	res_ls[0] = first - 1 < 0 ? -1 : first - 1;
-}
-
-/*******************************************************************************
- * Function:        kernel_update_faces
- *
- * Description:     This kernel updates the vertices array based on the indices
- 					array passed to it. 
- *
- * Arguments:       vertex * f_in: The input vertices array
- * 					vertex * f_out: The output vertices arraY
- * 					int * inds: The indices array as per which the output array
- * 									will be written to.
- * 					int vertice_length: The lenght of f_in, f_out and inds arrays
- *
- * Return Values:   None
-*******************************************************************************/
-__global__
-void kernel_update_faces(vertex * f_in, vertex * f_out, int * inds, const unsigned int vertices_length){
-	unsigned int idx = blockIdx.x * blockDim.x + threadIdx.x;
-	const unsigned int numthrds = blockDim.x * gridDim.x;
-
-	while(idx < vertices_length){
-		f_out[idx] = f_in[inds[idx]];
-		inds[idx] = idx;
-		idx += numthrds;
-	}
 }
