@@ -60,7 +60,7 @@ cudaEvent_t stop;
 int check_args(int argc, char **argv){
 	if (argc != 3){
         // printf("Usage: ./grav [depth] [thread_per_block] \n");
-        printf("Usage: ./grav [depth] [verbose: 0/1]\n");
+        printf("Usage: ./grav [length of array] [verbose: 0/1]\n");
         return 1;
     }
     return 0;
