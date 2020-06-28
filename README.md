@@ -61,7 +61,7 @@ Following steps are to be followed to build and run the program
     $ ls
     bin  Makefile  README.md  results  sort  src  utilities
     ```
-4. Run the program using ./short <length of array> <verbose: 0/1>
+4. Run the program using ./short < length of array > < verbose: 0/1 >
     ```sh
     $ ./sort 100 1
     Verbose ON
