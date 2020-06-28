@@ -45,7 +45,7 @@ Following steps are to be followed to build and run the program
     $ ls
     bin  Makefile  README.md  results  src  utilities
     ```
-2. Make the file. Note that it is assumed that the nvidia cuda toolkit is installed.
+2. Make the file. Note that it is assumed that the nvidia cuda toolkit is installed (ignore warnings, if any).
     ```sh
     $ make clean all
     rm -f sort *.o bin/*.o *~
@@ -75,3 +75,53 @@ Following steps are to be followed to build and run the program
     Exporting: gpu_arr.csv
     -----------------------
     ```
+
+## Using the parallel merge
+The *cuda_sort.cu* and *cuda_sort.cuh* files are required to use the parallel merge sorting. Following code gives an example on how to use it:
+
+```C++
+#include <cstdio>
+#include <cstdlib>
+#include <iostream>
+
+/* Cuda includes */
+#include <cuda_runtime.h>
+#include "cuda_sorting.cuh"
+
+int main(int argc, char **argv) {
+
+    /* allocate the memory for the array to sorted and the resulting array */
+    int arr_len = 100;
+    cpu_arr = (int *)malloc(arr_len*sizeof(float));
+    gpu_out_arr = (int *)malloc(arr_len*sizeof(int));
+    
+    /* Initialize the array (here it is randomly initialized) */
+    srand(0);
+    for(unsigned int i = 0; i<arr_len; i++){
+        cpu_arr[i] = rand()%100;
+    }
+    
+    /* Initialize and copy the array to the GPU memeory*/
+    cuda_cpy_input_data(cpu_arr, arr_len);
+    
+    /* sort the array in GPU */
+    cudacall_merge_sort();
+    /* check for errors */
+    cudaError err = cudaGetLastError();
+    if (cudaSuccess != err){
+        cerr << "Error " << cudaGetErrorString(err) << endl;
+    }else{
+    	cerr << "No kernel error detected" << endl;
+    }
+    /* Copy the result back to the CPU memory*/
+    cuda_cpy_output_data(gpu_out_arr, arr_len);
+    
+    /* Free the CPU memory */
+    free(cpu_arr);
+	free(gpu_out_arr);
+	/* Free the GPU memory */
+	free_gpu_memory();
+	
+    return 1;
+}
+```
