@@ -12,19 +12,17 @@ Consider two integer arrays i.e. *arr1* and *arr2*. We assume, without the loss 
 1. (In parallel) For every element in arr1 perform the following:
 
     a.  Find the index of largest number in *arr2* which is smaller than arr1[i].
-
-           ![formula](http://www.sciweavers.org/tex2img.php?eq=lsIndex[i]=argmax_j%20(arr2[j]%20%3C%20arr1[i])&bc=White&fc=Black&im=jpg&fs=12&ff=arev&edit=)
+![formula](http://www.sciweavers.org/tex2img.php?eq=lsIndex[i]=argmax_j%20(arr2[j]%20%3C%20arr1[i])&bc=White&fc=Black&im=jpg&fs=12&ff=arev&edit=)
 
     b. The *lsIndex[i]* is the index of largest number in *arr2* array which is smaller than *arr1[i]*. Now put the *arr1[i]* into the *res_arr* at position *lsIndex[i]+i+1*.
 
 2. (In parallel) For every element in arr2 perform the following:
 
     a.  Find the index of smallest number in *arr1* which is larger than arr2[i].
-
-           ![formula](http://www.sciweavers.org/tex2img.php?eq=slIndex[i]=argmin_j%20(arr2[i]%20%3C%20arr1[j])&bc=White&fc=Black&im=jpg&fs=12&ff=arev&edit=)
+![formula](http://www.sciweavers.org/tex2img.php?eq=slIndex[i]=argmin_j%20(arr2[i]%20%3C%20arr1[j])&bc=White&fc=Black&im=jpg&fs=12&ff=arev&edit=)
 
     b. The *slIndex[i]* is the index of smallest number in *arr1* array which is larger than *arr1[i]*. Now put the *arr2[i]* into the *res_arr* at position *slIndex[i]+i*.
-    
+
 ## Implementation
 The parallel merging implemented in the "cuda_sortin.cu" file is as follows:
 1. First merge the arrays in sequential manner in CUDA till the resulting array's size is less than equal to 1024.
