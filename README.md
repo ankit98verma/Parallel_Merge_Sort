@@ -1,7 +1,5 @@
 # Parallel merge sort
 
-[![Build Status](https://travis-ci.org/joemccann/dillinger.svg?branch=master)](https://travis-ci.org/joemccann/dillinger)
-
 This repository implements the parallel merge sort algorithm on CUDA. The following article explains the parallel merge sorting of two arrays assuming that no duplicate elements are present in the arrays. 
 [ICS 643: Advanced Parallel Algorithms, Prof:Nodari Sitchinava](http://www2.hawaii.edu/~nodari/teaching/f16/notes/notes10.pdf)
 
