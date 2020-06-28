@@ -36,7 +36,7 @@ The parallel merging implemented in the "cuda_sortin.cu" file is as follows:
     
     - In this each threads works on an element of the array and places the element at the proper position in the resulting array.
 
-## Building and running the example program
+## Building and running the example code
 The *main.cpp* implements a example usage of the parallel merging. The code generates fills an array with random numbers between 0 and 100 uniformly, then sort the array and export is as ".csv" file in the "results" folder. The Matlab code provided in the "utility" folder can be used to plot the exported ".csv" file to verify the results.
 
 Following steps are to be followed to build and run the program
@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
         cpu_arr[i] = rand()%100;
     }
     
-    /* Initialize and copy the array to the GPU memeory*/
+    /* Initialize the GPU memory and copy the array to it */
     cuda_cpy_input_data(cpu_arr, arr_len);
     
     /* sort the array in GPU */
@@ -119,6 +119,7 @@ int main(int argc, char **argv) {
     /* Free the CPU memory */
     free(cpu_arr);
 	free(gpu_out_arr);
+	
 	/* Free the GPU memory */
 	free_gpu_memory();
 	
