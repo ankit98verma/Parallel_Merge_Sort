@@ -36,10 +36,9 @@ The parallel merging implemented in the "cuda_sortin.cu" file is as follows:
     
     - In this each threads works on an element of the array and places the element at the proper position in the resulting array.
 
-## Analysis
-### Time complexity
-Say, we have an array of size *N* to sort. There are total of *ceil(log<sub>2<sub>(N))* steps to sort the array using the merge sort.
-	
+## Time complexity
+Say, we have an array of size *N* to sort. There are total of *ceil(log<sub>2</sub>(N))* steps to sort the array using the merge sort. In each step we use binary search to find the largest smallest element and the smallest larget element for which the complexity is *log<sub>2</sub>(N)*. Hence the time complexity of the algorithm is *log<sup>2</sup>(N)*.
+
 ## Building and running the example code
 The *main.cpp* implements a example usage of the parallel merging. The code generates fills an array with random numbers between 0 and 100 uniformly, then sort the array and export is as ".csv" file in the "results" folder. The Matlab code provided in the "utility" folder can be used to plot the exported ".csv" file to verify the results.
 
