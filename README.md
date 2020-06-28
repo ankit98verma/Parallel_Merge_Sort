@@ -11,7 +11,7 @@ Consider two integer arrays i.e. *arr1* and *arr2*. We assume, without the loss 
 
     a.  Find the index of largest number in *arr2* which is smaller than arr1[i].
 
-		lsIndex[i] = argmax<sub>j</sub> (arr2[j] < arr1[i]).
+	lsIndex[i] = argmax<sub>j</sub> (arr2[j] < arr1[i]).
 
     b. The *lsIndex[i]* is the index of largest number in *arr2* array which is smaller than *arr1[i]*. Now put the *arr1[i]* into the *res_arr* at position *lsIndex[i]+i+1*.
 
@@ -19,7 +19,7 @@ Consider two integer arrays i.e. *arr1* and *arr2*. We assume, without the loss 
 
     a.  Find the index of smallest number in *arr1* which is larger than arr2[i].
 
-    	slIndex[i] = argmax<sub>j</sub> (arr2[i] < arr1[j]).
+    slIndex[i] = argmax<sub>j</sub> (arr2[i] < arr1[j]).
 
     b. The *slIndex[i]* is the index of smallest number in *arr1* array which is larger than *arr1[i]*. Now put the *arr2[i]* into the *res_arr* at position *slIndex[i]+i*.
 
