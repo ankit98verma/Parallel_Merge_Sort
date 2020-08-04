@@ -328,7 +328,7 @@ void kernel_merge_chuncks(int * arr, int * res, const unsigned int length, const
 }
 
 /*******************************************************************************
- * Function:        cudacall_fill_vertices
+ * Function:        cudacall_merge_sort
  *
  * Description:     This calls the optimized sorting algorithms.
  *
